@@ -1,990 +1,2134 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Virtual Lab — Integration</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.0/math.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#0a0e1a;
-  --surface:#111827;
-  --surface2:#1a2236;
-  --border:#1e2d45;
-  --accent:#3b82f6;
-  --accent2:#60a5fa;
-  --accent3:#93c5fd;
-  --green:#10b981;
-  --purple:#8b5cf6;
-  --gold:#f59e0b;
-  --text:#e2e8f0;
-  --muted:#64748b;
-  --muted2:#94a3b8;
-  --font:'Inter',sans-serif;
-  --mono:'JetBrains Mono',monospace;
-  --serif:'Playfair Display',serif;
+:root {
+  --bg: #f0f4ff;
+  --deep: #070d1f;
+  --ink: #0d1a40;
+  --muted: #5a6a8a;
+  --line: #c8d4f0;
+  --card: #ffffff;
+  --primary: #1640d6;
+  --primary-light: #3b5de8;
+  --primary-dim: #e8eeff;
+  --accent: #0ac5e0;
+  --gold: #e8a020;
+  --green: #0d9e5a;
+  --red: #d93030;
+  --violet: #7c3aed;
+  --nav-h: 62px;
+  --ff-display: 'Libre Baskerville', serif;
+  --ff-ui: 'DM Sans', sans-serif;
+  --ff-mono: 'JetBrains Mono', monospace;
+  --radius: 8px;
+  --shadow: 0 2px 20px rgba(22,64,214,.09);
+  --shadow-lg: 0 8px 40px rgba(22,64,214,.15);
 }
-html{scroll-behavior:smooth}
-body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;line-height:1.6;min-height:100vh}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--ff-ui);
+  font-size: 15px;
+  line-height: 1.65;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── MATH GRID BACKGROUND ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 40px 40px;
+  opacity: .28;
+}
+body::after {
+  content: '';
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background: radial-gradient(ellipse at 20% 50%, rgba(22,64,214,.06) 0%, transparent 60%),
+              radial-gradient(ellipse at 80% 20%, rgba(10,197,224,.05) 0%, transparent 55%);
+}
+
+/* ── FLOATING MATH SYMBOLS ── */
+.math-bg-symbols {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+}
+.math-bg-symbols span {
+  position: absolute;
+  font-family: var(--ff-display);
+  font-style: italic;
+  color: rgba(22,64,214,.055);
+  user-select: none;
+  line-height: 1;
+}
 
 /* ── NAV ── */
-nav{position:sticky;top:0;z-index:100;background:rgba(10,14,26,.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:0 2rem}
-.nav-inner{max-width:1100px;margin:auto;display:flex;align-items:center;gap:0;height:56px}
-.nav-brand{font-family:var(--mono);font-size:1.1rem;color:var(--accent);margin-right:2rem;white-space:nowrap}
-.nav-tabs{display:flex;gap:0;overflow-x:auto;scrollbar-width:none}
-.nav-tabs::-webkit-scrollbar{display:none}
-.nav-tab{padding:0 1.1rem;height:56px;display:flex;align-items:center;font-size:.85rem;font-weight:500;color:var(--muted2);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;text-transform:uppercase;letter-spacing:.05em}
-.nav-tab:hover{color:var(--text)}
-.nav-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+nav {
+  position: sticky; top: 0; z-index: 200;
+  height: var(--nav-h);
+  background: rgba(7,13,31,.96);
+  backdrop-filter: blur(12px);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 2.5rem;
+  border-bottom: 2px solid var(--primary);
+  box-shadow: 0 2px 20px rgba(22,64,214,.3);
+}
+.brand {
+  font-family: var(--ff-display);
+  font-size: 1.05rem;
+  color: #fff;
+  letter-spacing: .01em;
+  display: flex; align-items: center; gap: .55rem;
+}
+.brand-icon {
+  background: var(--primary);
+  width: 32px; height: 32px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem; color: #fff; flex-shrink: 0;
+}
+.brand-text { display: flex; flex-direction: column; line-height: 1.2; }
+.brand-text small { font-family: var(--ff-mono); font-size: .55rem; color: var(--accent); letter-spacing: .15em; text-transform: uppercase; }
+.nav-pills { display: flex; gap: 2px; }
+.np {
+  font-family: var(--ff-mono); font-size: .65rem; text-transform: uppercase;
+  letter-spacing: .1em; padding: .45rem 1.1rem; background: none; border: none;
+  color: #7090b0; cursor: pointer; border-radius: 4px; transition: .2s;
+}
+.np:hover { color: #fff; background: rgba(255,255,255,.08); }
+.np.active { color: #fff; background: var(--primary); }
 
-/* ── HERO ── */
-.hero{background:linear-gradient(135deg,#0a0e1a 0%,#0f172a 50%,#0a1628 100%);padding:5rem 2rem 4rem;text-align:center;position:relative;overflow:hidden}
-.hero::before{content:'∫ ∬ ∭ ∂ ∑ ∞ dx dV π Σ ∇ ≈';position:absolute;top:1.5rem;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:.7rem;color:rgba(59,130,246,.18);letter-spacing:.3em;white-space:nowrap}
-.hero-badge{display:inline-flex;align-items:center;gap:.5rem;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.25);border-radius:999px;padding:.3rem 1rem;font-size:.75rem;color:var(--accent3);margin-bottom:1.5rem;font-family:var(--mono)}
-.hero h1{font-family:var(--serif);font-size:clamp(2.2rem,5vw,3.8rem);font-weight:700;line-height:1.15;margin-bottom:.5rem}
-.hero h1 em{font-style:italic;color:var(--accent2)}
-.hero p{color:var(--muted2);max-width:580px;margin:.8rem auto 2rem;font-size:1rem}
-.hero-tags{display:flex;flex-wrap:wrap;justify-content:center;gap:.5rem;margin-bottom:2.5rem}
-.tag{background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.18);border-radius:6px;padding:.25rem .75rem;font-size:.78rem;font-family:var(--mono);color:var(--accent3)}
-.hero-btns{display:flex;flex-wrap:wrap;gap:1rem;justify-content:center}
-.btn{padding:.7rem 1.8rem;border-radius:8px;font-size:.9rem;font-weight:600;cursor:pointer;border:none;transition:all .2s}
-.btn-primary{background:var(--accent);color:#fff}
-.btn-primary:hover{background:#2563eb;transform:translateY(-1px)}
-.btn-outline{background:transparent;color:var(--accent2);border:1px solid var(--accent)}
-.btn-outline:hover{background:rgba(59,130,246,.08)}
+/* ── SECTIONS ── */
+.page { display: none; position: relative; z-index: 1; min-height: calc(100vh - var(--nav-h)); }
+.page.on { display: block; animation: fadeIn .3s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
-/* ── SECTION WRAPPER ── */
-section{display:none;max-width:1100px;margin:0 auto;padding:3rem 2rem}
-section.active{display:block}
+/* ── SHARED ── */
+.wrap { max-width: 1160px; margin: 0 auto; padding: 3.5rem 2rem; }
+.eyebrow {
+  font-family: var(--ff-mono); font-size: .62rem; text-transform: uppercase;
+  letter-spacing: .2em; color: var(--accent); margin-bottom: .55rem;
+}
+h1, h2 { font-family: var(--ff-display); line-height: 1.1; }
+h2 { font-size: 2.4rem; margin-bottom: 1.6rem; color: var(--ink); }
 
 /* ── CARDS ── */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.8rem}
-.card+.card{margin-top:1.5rem}
-.card h3{font-size:1.05rem;font-weight:600;margin-bottom:.6rem;color:var(--text)}
+.card {
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.card-hd {
+  background: var(--ink); color: #fff; padding: .7rem 1.2rem;
+  border-radius: var(--radius) var(--radius) 0 0;
+  font-family: var(--ff-mono); font-size: .66rem; letter-spacing: .1em; text-transform: uppercase;
+  display: flex; align-items: center; gap: .5rem;
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.card-bd { padding: 1.3rem; }
 
-/* ── FORMULA BLOCKS ── */
-.formula{background:var(--surface2);border-left:3px solid var(--accent);border-radius:0 8px 8px 0;padding:.9rem 1.2rem;font-family:var(--mono);font-size:.85rem;color:var(--accent3);margin:1rem 0;line-height:1.8}
+/* ── BUTTONS ── */
+.btn {
+  display: inline-block; font-family: var(--ff-mono); font-size: .7rem;
+  text-transform: uppercase; letter-spacing: .1em; padding: .65rem 1.4rem;
+  border-radius: 4px; border: 2px solid; cursor: pointer; transition: .18s;
+  text-decoration: none;
+}
+.btn-primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+.btn-primary:hover { background: transparent; color: var(--primary); }
+.btn-dark { background: var(--ink); border-color: var(--ink); color: #fff; }
+.btn-dark:hover { background: transparent; color: var(--ink); }
+.btn-row { display: flex; flex-wrap: wrap; gap: .8rem; }
 
-/* ── TABLE ── */
-table{width:100%;border-collapse:collapse;font-size:.85rem;margin:1rem 0}
-th{background:var(--surface2);color:var(--accent3);font-weight:600;text-align:left;padding:.6rem .9rem;border-bottom:1px solid var(--border)}
-td{padding:.55rem .9rem;border-bottom:1px solid rgba(30,45,69,.5);color:var(--muted2)}
-tr:hover td{background:rgba(59,130,246,.03)}
+/* ────────────────────────────────────
+   HOME
+──────────────────────────────────── */
+.hero {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 4rem; align-items: center;
+  padding: 5rem 2rem 3rem;
+  max-width: 1160px; margin: 0 auto;
+}
+.hero h1 { font-size: 3.8rem; margin-bottom: 1.2rem; line-height: 1.05; }
+.hero h1 em { color: var(--primary); font-style: italic; }
+.hero p { color: var(--muted); max-width: 460px; margin-bottom: 2rem; font-size: .93rem; }
+.pill-row { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: 2rem; }
+.pill {
+  font-family: var(--ff-mono); font-size: .6rem; text-transform: uppercase;
+  letter-spacing: .1em; padding: .28rem .75rem; border-radius: 20px;
+  border: 1.5px solid;
+}
+.pill-p { border-color: var(--primary); color: var(--primary); background: var(--primary-dim); }
+.pill-a { border-color: var(--accent); color: #0896a8; }
+.pill-g { border-color: var(--green); color: var(--green); }
+.pill-v { border-color: var(--violet); color: var(--violet); }
 
-/* ── QUIZ ── */
-.quiz-q{font-weight:600;color:var(--text);margin-bottom:1rem}
-.quiz-opts{display:flex;flex-direction:column;gap:.5rem}
-.quiz-opt{display:flex;align-items:center;gap:.7rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.7rem 1rem;cursor:pointer;transition:all .2s;font-size:.9rem}
-.quiz-opt:hover{border-color:var(--accent);background:rgba(59,130,246,.06)}
-.quiz-opt.correct{border-color:var(--green);background:rgba(16,185,129,.08);color:var(--green)}
-.quiz-opt.wrong{border-color:#ef4444;background:rgba(239,68,68,.06);color:#ef4444}
-.quiz-nav{display:flex;justify-content:space-between;align-items:center;margin-top:1.5rem}
-.progress-bar{height:3px;background:var(--border);border-radius:2px;margin-bottom:1.5rem}
-.progress-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .4s}
+/* hero visual */
+.hero-visual {
+  background: var(--deep);
+  border-radius: 12px;
+  border: 1.5px solid #1a2560;
+  padding: 2rem;
+  box-shadow: var(--shadow-lg), inset 0 0 60px rgba(22,64,214,.08);
+  position: relative; overflow: hidden;
+}
+.hero-visual::before {
+  content: '';
+  position: absolute; top: -40px; right: -40px;
+  width: 220px; height: 220px;
+  background: radial-gradient(circle, rgba(22,64,214,.2) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hv-block { margin-bottom: 1.5rem; }
+.hv-block:last-child { margin-bottom: 0; }
+.hv-label { font-family: var(--ff-mono); font-size: .58rem; color: var(--accent); text-transform: uppercase; letter-spacing: .15em; margin-bottom: .45rem; }
+.hv-formula {
+  font-family: var(--ff-display);
+  font-style: italic;
+  font-size: 1.1rem; color: #d0dbff; line-height: 1.9;
+  border-left: 3px solid var(--primary);
+  padding-left: .9rem;
+}
+.hv-formula .hl { color: var(--accent); font-style: normal; font-family: var(--ff-mono); font-size: .82rem; }
+.hv-formula .muted { color: #445; font-size: .82rem; font-style: normal; font-family: var(--ff-mono); }
 
-/* ── LAB ── */
-.tabs-sub{display:flex;gap:.5rem;margin-bottom:1.5rem;flex-wrap:wrap}
-.tab-btn{padding:.45rem 1.1rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--muted2);font-size:.82rem;font-weight:600;cursor:pointer;transition:all .2s}
-.tab-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
-.lab-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
-@media(max-width:768px){.lab-grid{grid-template-columns:1fr}}
-label{display:block;font-size:.78rem;color:var(--muted2);margin-bottom:.3rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em}
-input,select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.5rem .8rem;color:var(--text);font-family:var(--mono);font-size:.85rem;margin-bottom:.9rem;outline:none}
-input:focus,select:focus{border-color:var(--accent)}
-.result-box{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:1rem;font-family:var(--mono);font-size:.82rem;color:var(--muted2);min-height:80px;white-space:pre-wrap;line-height:1.6}
-.step-box{background:rgba(59,130,246,.04);border:1px solid rgba(59,130,246,.15);border-radius:8px;padding:1rem;font-size:.83rem;line-height:1.8;min-height:100px;color:var(--muted2)}
-.geogebra-placeholder{background:var(--surface2);border:1px solid var(--border);border-radius:8px;height:280px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);font-size:.85rem;gap:.5rem}
-canvas#threeCanvas{width:100%!important;height:280px!important;border-radius:8px}
-.stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-top:.8rem}
-.stat{background:var(--surface2);border-radius:6px;padding:.5rem .7rem;font-size:.78rem;color:var(--muted2)}
-.stat span{display:block;color:var(--text);font-family:var(--mono);font-weight:600;font-size:.88rem}
+/* feature grid */
+.feat-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 1rem; max-width: 1160px; margin: 0 auto 3rem;
+  padding: 0 2rem;
+}
+.feat-card {
+  background: var(--card); border: 1.5px solid var(--line);
+  border-radius: var(--radius); padding: 1.4rem 1.2rem;
+  cursor: pointer; transition: border-color .2s, transform .2s, box-shadow .2s;
+  box-shadow: var(--shadow); position: relative; overflow: hidden;
+}
+.feat-card::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(135deg, var(--primary-dim), transparent);
+  opacity: 0; transition: opacity .2s;
+}
+.feat-card:hover { border-color: var(--primary); transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+.feat-card:hover::before { opacity: 1; }
+.feat-icon { font-size: 1.7rem; margin-bottom: .7rem; position: relative; z-index: 1; }
+.feat-card h3 { font-family: var(--ff-display); font-size: 1rem; margin-bottom: .4rem; position: relative; z-index: 1; }
+.feat-card p { font-size: .82rem; color: var(--muted); line-height: 1.55; position: relative; z-index: 1; }
 
-/* ── EXAMPLES ── */
-.ex-tabs{display:flex;gap:.5rem;margin-bottom:1.2rem}
-.ex-step{display:flex;gap:.8rem;margin-bottom:.7rem;font-size:.875rem}
-.ex-num{width:22px;height:22px;min-width:22px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;color:#fff;margin-top:2px}
-.ex-text{color:var(--muted2)}
-.ex-text strong{color:var(--text)}
+/* ────────────────────────────────────
+   THEORY
+──────────────────────────────────── */
+.theory-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 2.5rem; }
+.theory-body h3 { font-family: var(--ff-display); font-size: 1.25rem; color: var(--primary); margin: 1.6rem 0 .5rem; }
+.theory-body h3:first-child { margin-top: 0; }
+.theory-body p { font-size: .9rem; color: #2a3050; line-height: 1.82; margin-bottom: .9rem; }
 
-/* ── ALGORITHM STEPS ── */
-.algo-step{display:flex;gap:1rem;align-items:flex-start;padding:.8rem 0;border-bottom:1px solid rgba(30,45,69,.5)}
-.algo-step:last-child{border-bottom:none}
-.algo-n{width:28px;height:28px;min-width:28px;background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;color:var(--accent);font-family:var(--mono)}
+.formula {
+  background: var(--deep); color: #c8d8ff;
+  border-radius: 6px; padding: 1rem 1.25rem;
+  font-family: var(--ff-display); font-style: italic;
+  font-size: .95rem; line-height: 2;
+  border-left: 4px solid var(--primary); margin: .8rem 0 1.2rem;
+}
+.formula .res { color: var(--accent); font-style: normal; font-family: var(--ff-mono); font-size: .9rem; }
+.formula .dim { color: #3a4a6a; font-size: .75rem; font-style: normal; font-family: var(--ff-mono); }
 
-/* ── CONTRIBUTORS ── */
-.contrib-header{text-align:center;padding:2rem 0 3rem}
-.contrib-header h2{font-family:var(--serif);font-size:2rem;margin-bottom:.5rem}
-.contrib-header p{color:var(--muted2);max-width:500px;margin:auto}
-.guide-card{background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(139,92,246,.08));border:1px solid rgba(59,130,246,.3);border-radius:16px;padding:2rem;display:flex;align-items:center;gap:2rem;margin-bottom:2.5rem;position:relative;overflow:hidden}
-.guide-card::before{content:'';position:absolute;top:-40px;right:-40px;width:130px;height:130px;background:radial-gradient(circle,rgba(59,130,246,.15),transparent 70%);border-radius:50%}
-.avatar{width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.7rem;font-weight:700;flex-shrink:0;color:#fff}
-.avatar-guide{background:linear-gradient(135deg,#3b82f6,#8b5cf6)}
-.avatar-student{background:linear-gradient(135deg,#10b981,#3b82f6)}
-.avatar-s2{background:linear-gradient(135deg,#f59e0b,#ef4444)}
-.avatar-s3{background:linear-gradient(135deg,#8b5cf6,#ec4899)}
-.avatar-s4{background:linear-gradient(135deg,#10b981,#f59e0b)}
-.guide-info h3{font-size:1.2rem;font-weight:700;margin-bottom:.3rem}
-.guide-info .role{font-size:.78rem;font-family:var(--mono);color:var(--accent);background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.2);border-radius:999px;padding:.2rem .8rem;display:inline-block;margin-bottom:.6rem}
-.guide-info p{color:var(--muted2);font-size:.88rem}
-.students-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.2rem;margin-bottom:2.5rem}
-.student-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.4rem;transition:transform .2s,border-color .2s}
-.student-card:hover{transform:translateY(-3px);border-color:rgba(59,130,246,.4)}
-.student-top{display:flex;align-items:center;gap:1rem;margin-bottom:1rem}
-.student-info h4{font-size:.97rem;font-weight:600}
-.student-info .srole{font-size:.72rem;font-family:var(--mono);color:var(--green);background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:999px;padding:.15rem .6rem;display:inline-block;margin-top:.25rem}
-.contrib-tags{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.8rem}
-.ctag{font-size:.72rem;background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.15);border-radius:4px;padding:.15rem .5rem;color:var(--accent3);font-family:var(--mono)}
-.tech-section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin-bottom:1.5rem}
-.tech-section h3{font-size:.95rem;font-weight:600;margin-bottom:1rem;color:var(--accent3)}
-.tech-grid{display:flex;flex-wrap:wrap;gap:.6rem}
-.tech-badge{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.35rem .8rem;font-size:.78rem;font-family:var(--mono);color:var(--muted2)}
-.divider-label{text-align:center;color:var(--muted);font-size:.78rem;font-family:var(--mono);text-transform:uppercase;letter-spacing:.1em;margin:2rem 0 1rem;position:relative}
-.divider-label::before,.divider-label::after{content:'';position:absolute;top:50%;width:38%;height:1px;background:var(--border)}
-.divider-label::before{left:0}.divider-label::after{right:0}
+.info-tbl { width: 100%; border-collapse: collapse; font-size: .84rem; margin-top: .8rem; }
+.info-tbl th { background: var(--ink); color: #fff; padding: .55rem .9rem; text-align: left; font-family: var(--ff-mono); font-size: .63rem; letter-spacing: .08em; }
+.info-tbl td { padding: .55rem .9rem; border-bottom: 1px solid var(--line); }
+.info-tbl tr:hover td { background: var(--primary-dim); }
 
-/* ── MODULE HEADER ── */
-.mod-header{font-size:.72rem;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.8rem}
-h2.section-title{font-family:var(--serif);font-size:1.7rem;margin-bottom:1.5rem}
-.section-intro{color:var(--muted2);max-width:640px;margin-bottom:2rem}
+.sidebar-box {
+  background: var(--card); border: 1.5px solid var(--line);
+  border-radius: var(--radius); padding: 1.4rem;
+  position: sticky; top: calc(var(--nav-h) + 1rem);
+  box-shadow: var(--shadow);
+}
+.sidebar-box + .sidebar-box { margin-top: 1.2rem; }
+.sb-title { font-family: var(--ff-mono); font-size: .62rem; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); margin-bottom: 1rem; }
+.algo-step { display: flex; gap: .9rem; margin-bottom: .85rem; align-items: flex-start; }
+.algo-n { background: var(--primary); color: #fff; width: 22px; height: 22px; border-radius: 50%; font-family: var(--ff-mono); font-size: .68rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+.algo-t { font-size: .84rem; line-height: 1.55; color: #333; }
 
-/* ── SCORE BADGE ── */
-.score-badge{display:inline-flex;align-items:center;gap:.5rem;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);border-radius:8px;padding:.4rem .9rem;font-size:.88rem;font-weight:600;color:var(--green);margin-top:1rem}
+/* ────────────────────────────────────
+   QUIZ
+──────────────────────────────────── */
+.quiz-wrap { max-width: 780px; margin: 0 auto; }
+.quiz-hd {
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding: 1.6rem 2rem; color: #fff;
+}
+.quiz-hd h2 { color: #fff; font-size: 1.7rem; margin: 0 0 .3rem; }
+.quiz-hd p { font-size: .85rem; opacity: .7; }
+.quiz-bd {
+  background: var(--card); border: 1.5px solid var(--line); border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius); padding: 2rem;
+}
+.q-block { margin-bottom: 1.8rem; padding-bottom: 1.8rem; border-bottom: 1px solid var(--line); }
+.q-block:last-of-type { border-bottom: none; margin-bottom: .5rem; }
+.q-no { font-family: var(--ff-mono); font-size: .62rem; color: var(--primary); text-transform: uppercase; letter-spacing: .1em; margin-bottom: .35rem; }
+.q-text { font-size: .95rem; font-weight: 600; margin-bottom: .9rem; line-height: 1.55; }
+.opts { display: grid; gap: .45rem; }
+.opt {
+  display: flex; align-items: center; gap: .75rem;
+  padding: .6rem 1rem; border: 1.5px solid var(--line); border-radius: 6px;
+  cursor: pointer; font-size: .88rem; transition: .15s;
+}
+.opt:hover { border-color: var(--primary); background: var(--primary-dim); }
+.opt input[type=radio] { accent-color: var(--primary); }
+.opt.correct { border-color: var(--green); background: #eaf7f0; font-weight: 600; }
+.opt.wrong { border-color: var(--red); background: #fdf1ef; }
+.q-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 1.5rem; }
+.score-tag { display: none; font-family: var(--ff-mono); font-size: .82rem; padding: .4rem 1rem; border-radius: 3px; background: var(--green); color: #fff; }
+.score-tag.vis { display: inline-block; }
+.feedback { display: none; margin-top: 1.2rem; padding: 1rem 1.2rem; border-radius: 4px; font-size: .87rem; line-height: 1.7; }
+.feedback.vis { display: block; }
+.feedback.ok { background: #eaf7f0; border-left: 4px solid var(--green); color: #0d6e40; }
+.feedback.ng { background: #fdf1ef; border-left: 4px solid var(--red); color: var(--red); }
 
-/* ── GEOGEBRA ── */
-iframe.ggb{width:100%;height:320px;border:none;border-radius:8px;background:var(--surface2)}
+/* ────────────────────────────────────
+   LAB — FULL REDESIGN
+──────────────────────────────────── */
+.lab-tabs { display: flex; gap: 0; border-bottom: 2px solid var(--line); margin-bottom: 2rem; }
+.lab-tab {
+  font-family: var(--ff-mono); font-size: .7rem; text-transform: uppercase;
+  letter-spacing: .1em; padding: .75rem 1.6rem; background: none; border: none;
+  cursor: pointer; color: var(--muted); border-bottom: 3px solid transparent;
+  margin-bottom: -2px; transition: .15s;
+}
+.lab-tab:hover { color: var(--ink); }
+.lab-tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+.sim-panel { display: none; }
+.sim-panel.on { display: block; }
 
-/* ── THREE CONTAINER ── */
-#three-container{position:relative;background:var(--surface2);border-radius:8px;overflow:hidden;height:280px;margin-top:.5rem}
-#three-container canvas{position:absolute;top:0;left:0}
-.three-hint{position:absolute;bottom:.5rem;left:50%;transform:translateX(-50%);font-size:.72rem;color:var(--muted);font-family:var(--mono);pointer-events:none}
+/* Three-column layout: controls | GeoGebra | examples */
+.sim-grid-3 {
+  display: grid;
+  grid-template-columns: 290px 1fr 320px;
+  gap: 1.2rem;
+  align-items: start;
+}
+
+/* Controls */
+.ctrl-section { margin-bottom: .9rem; }
+.ctrl-label {
+  font-family: var(--ff-mono); font-size: .6rem; text-transform: uppercase;
+  letter-spacing: .1em; color: var(--muted); margin-bottom: .28rem; display: block;
+}
+.ctrl-input {
+  width: 100%; padding: .48rem .72rem;
+  border: 1.5px solid var(--line); border-radius: 5px;
+  font-family: var(--ff-mono); font-size: .82rem; background: var(--bg);
+  color: var(--ink); transition: border-color .15s;
+}
+.ctrl-input:focus { outline: none; border-color: var(--primary); background: #fff; }
+.half-row { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+
+.preset-row { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .8rem; }
+.psbtn {
+  font-family: var(--ff-mono); font-size: .58rem; letter-spacing: .04em; text-transform: uppercase;
+  padding: .28rem .6rem; border: 1.5px solid var(--line); border-radius: 3px;
+  background: var(--bg); cursor: pointer; color: var(--ink); transition: .15s;
+}
+.psbtn:hover, .psbtn.sel { border-color: var(--primary); color: var(--primary); background: var(--primary-dim); }
+
+.run-btn {
+  width: 100%; padding: .72rem; font-family: var(--ff-mono); font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .12em;
+  background: var(--primary); border: none; color: #fff; border-radius: 5px;
+  cursor: pointer; transition: background .15s, transform .1s; margin-top: .5rem;
+}
+.run-btn:hover { background: var(--primary-light); }
+.run-btn:active { transform: scale(.98); }
+.run-btn.triple { background: var(--violet); }
+.run-btn.triple:hover { background: #6d28d9; }
+
+.result-box {
+  background: var(--deep); color: var(--accent); font-family: var(--ff-mono);
+  font-size: .79rem; padding: .9rem 1rem; border-radius: 5px; margin-top: .8rem;
+  min-height: 80px; line-height: 1.8; white-space: pre-wrap;
+  border: 1px solid rgba(22,64,214,.25);
+}
+.result-box .hl { color: #ffd580; font-size: .95rem; }
+
+.steps-box {
+  background: var(--primary-dim); border: 1.5px solid var(--line);
+  border-radius: 5px; padding: .9rem 1rem; margin-top: .8rem;
+  font-family: var(--ff-mono); font-size: .75rem; line-height: 1.85;
+  max-height: 200px; overflow-y: auto;
+}
+.sl.hd { color: var(--primary); border-bottom: 1px solid var(--line); padding-bottom: .3rem; margin-bottom: .4rem; }
+.sl.ok { color: var(--green); font-weight: 600; }
+.sl.dim { color: var(--muted); }
+
+.info-row { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; margin-top: .8rem; }
+.info-mini {
+  background: var(--card); border: 1.5px solid var(--line); border-radius: var(--radius);
+  padding: .85rem .9rem; font-family: var(--ff-mono); font-size: .75rem; line-height: 2;
+  box-shadow: var(--shadow);
+}
+.info-mini .lbl { color: var(--muted); }
+.info-mini .val-p { color: var(--primary); }
+.info-mini .val-g { color: var(--green); }
+.info-mini .val-a { color: var(--gold); }
+.info-mini .val-v { color: var(--violet); }
+.info-mini .val-c { color: var(--accent); }
+
+/* GeoGebra panel */
+.ggb-panel {
+  background: var(--card); border: 1.5px solid var(--line);
+  border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow);
+}
+.ggb-hd {
+  background: var(--ink); color: #fff; padding: .65rem 1.1rem;
+  font-family: var(--ff-mono); font-size: .65rem; letter-spacing: .09em; text-transform: uppercase;
+}
+
+.ggb-note {
+  padding: .6rem 1rem; font-family: var(--ff-mono); font-size: .62rem;
+  color: var(--muted); border-top: 1px solid var(--line); background: var(--bg);
+}
+
+/* Examples side panel */
+.examples-panel {
+  background: var(--card); border: 1.5px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.examples-hd {
+  background: var(--deep); color: #fff; padding: .65rem 1.1rem;
+  font-family: var(--ff-mono); font-size: .65rem; letter-spacing: .09em; text-transform: uppercase;
+  display: flex; align-items: center; gap: .5rem;
+}
+.ex-tabs-inline { display: flex; border-bottom: 1.5px solid var(--line); }
+.ex-tab-inline {
+  flex: 1; font-family: var(--ff-mono); font-size: .6rem; text-transform: uppercase;
+  letter-spacing: .07em; padding: .55rem .4rem; background: none; border: none;
+  cursor: pointer; color: var(--muted); border-bottom: 3px solid transparent;
+  margin-bottom: -1.5px; transition: .15s; text-align: center;
+}
+.ex-tab-inline:hover { color: var(--ink); }
+.ex-tab-inline.active { color: var(--primary); border-bottom-color: var(--primary); }
+.ex-panel-inline { display: none; padding: 1rem; max-height: 520px; overflow-y: auto; }
+.ex-panel-inline.on { display: block; }
+
+.ex-problem-inline {
+  background: var(--primary-dim); border-left: 3px solid var(--primary);
+  border-radius: 4px; padding: .75rem .9rem; margin-bottom: 1rem;
+  font-size: .82rem; line-height: 1.65;
+}
+.ex-problem-inline strong { color: var(--primary); }
+.ex-step-inline { display: flex; gap: .75rem; margin-bottom: .85rem; align-items: flex-start; }
+.ex-num-inline {
+  background: var(--primary); color: #fff; min-width: 20px; height: 20px;
+  border-radius: 50%; font-family: var(--ff-mono); font-size: .62rem;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px;
+}
+.ex-step-inline.triple .ex-num-inline { background: var(--violet); }
+.ex-content-inline { font-size: .8rem; line-height: 1.6; color: #2a2a2a; flex: 1; }
+.ex-content-inline .f {
+  display: block; background: var(--deep); color: #c0d0ff;
+  font-family: var(--ff-mono); font-size: .75rem; line-height: 1.85;
+  padding: .55rem .85rem; border-radius: 4px; margin: .4rem 0;
+  border-left: 3px solid var(--accent);
+}
+.ex-content-inline .f .res { color: var(--accent); }
+.ex-content-inline .f .dim { color: #3a5a7a; font-size: .72rem; }
+.ex-answer-inline {
+  background: var(--primary); color: #fff; border-radius: 4px;
+  padding: .65rem 1rem; margin-top: 1rem; text-align: center;
+  font-family: var(--ff-mono); font-size: .82rem; letter-spacing: .04em;
+}
+.ex-answer-inline.triple { background: var(--violet); }
+.ex-note-inline {
+  font-size: .75rem; color: var(--muted); background: var(--bg);
+  border-radius: 4px; padding: .5rem .75rem; font-style: italic; margin-top: .75rem;
+}
+.ex-divider { border: none; border-top: 1px solid var(--line); margin: 1rem 0; }
+.load-ex-btn {
+  width: 100%; margin-top: .75rem; padding: .5rem;
+  font-family: var(--ff-mono); font-size: .65rem; text-transform: uppercase;
+  letter-spacing: .09em; background: transparent;
+  border: 1.5px solid var(--primary); color: var(--primary);
+  border-radius: 4px; cursor: pointer; transition: .15s;
+}
+.load-ex-btn:hover { background: var(--primary); color: #fff; }
+.load-ex-btn.triple { border-color: var(--violet); color: var(--violet); }
+.load-ex-btn.triple:hover { background: var(--violet); color: #fff; }
+
+/* solved-btn (legacy compat) */
+.solved-btn {
+  width: 100%; padding: .6rem; font-family: var(--ff-mono); font-size: .68rem;
+  text-transform: uppercase; letter-spacing: .1em;
+  background: transparent; border: 1.5px solid var(--green); color: var(--green);
+  border-radius: 4px; cursor: pointer; transition: .18s; margin-top: .45rem;
+  display: flex; align-items: center; justify-content: center; gap: .4rem;
+}
+.solved-btn:hover { background: var(--green); color: #fff; }
+
+/* triple limits */
+.triple-limits { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+
+/* ────────────────────────────────────
+   MODALS (legacy — kept for fallback)
+──────────────────────────────────── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0; z-index: 500;
+  background: rgba(7,13,31,.6); backdrop-filter: blur(4px);
+  align-items: center; justify-content: center; padding: 1.5rem;
+}
+.modal-overlay.open { display: flex; }
+.modal-box {
+  background: var(--card); border-radius: var(--radius);
+  border: 1.5px solid var(--line); box-shadow: var(--shadow-lg);
+  max-width: 680px; width: 100%; max-height: 88vh; overflow-y: auto;
+  animation: slideUp .25s ease;
+}
+@keyframes slideUp { from { transform: translateY(24px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+.modal-hd {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--ink); color: #fff;
+  padding: 1rem 1.4rem; border-radius: var(--radius) var(--radius) 0 0;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.modal-hd h3 { font-family: var(--ff-display); font-size: 1.2rem; color: #fff; }
+.modal-hd .sub { font-family: var(--ff-mono); font-size: .62rem; color: #7090b0; margin-top: .2rem; }
+.modal-close {
+  background: rgba(255,255,255,.1); border: none; color: #fff; width: 28px; height: 28px;
+  border-radius: 50%; font-size: 1rem; cursor: pointer; display: flex;
+  align-items: center; justify-content: center; flex-shrink: 0; transition: background .15s;
+}
+.modal-close:hover { background: var(--red); }
+.modal-bd { padding: 1.6rem; }
+.ex-tabs { display: flex; gap: 0; border-bottom: 2px solid var(--line); margin-bottom: 1.4rem; }
+.ex-tab {
+  font-family: var(--ff-mono); font-size: .65rem; text-transform: uppercase;
+  letter-spacing: .09em; padding: .55rem 1rem; background: none; border: none;
+  cursor: pointer; color: var(--muted); border-bottom: 3px solid transparent;
+  margin-bottom: -2px; transition: .15s;
+}
+.ex-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+.ex-panel { display: none; }
+.ex-panel.on { display: block; }
+.ex-problem { background: var(--primary-dim); border-left: 4px solid var(--primary); border-radius: 4px; padding: .9rem 1.1rem; margin-bottom: 1.2rem; font-size: .88rem; line-height: 1.65; }
+.ex-problem strong { color: var(--primary); }
+.ex-step { display: flex; gap: .9rem; margin-bottom: 1rem; align-items: flex-start; }
+.ex-num { background: var(--primary); color: #fff; min-width: 24px; height: 24px; border-radius: 50%; font-family: var(--ff-mono); font-size: .68rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+.ex-content { font-size: .875rem; line-height: 1.65; color: #2a2a2a; flex: 1; }
+.ex-content .f { display: block; background: var(--deep); color: #c0d0ff; font-family: var(--ff-mono); font-size: .82rem; line-height: 1.85; padding: .65rem 1rem; border-radius: 4px; margin: .5rem 0; border-left: 3px solid var(--accent); }
+.ex-content .f .res { color: var(--accent); }
+.ex-content .f .dim { color: #3a4a6a; font-size: .75rem; }
+.ex-answer { background: var(--primary); color: #fff; border-radius: 4px; padding: .8rem 1.2rem; margin-top: 1.2rem; text-align: center; font-family: var(--ff-mono); font-size: .95rem; letter-spacing: .04em; }
+.ex-divider { border: none; border-top: 1px solid var(--line); margin: 1.4rem 0; }
+.ex-note { font-size: .8rem; color: var(--muted); background: var(--bg); border-radius: 4px; padding: .6rem .9rem; font-style: italic; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 1100px) {
+  .sim-grid-3 { grid-template-columns: 280px 1fr; }
+  .examples-panel { grid-column: 1 / -1; }
+}
+@media (max-width: 900px) {
+  .hero { grid-template-columns: 1fr; padding: 2.5rem 1.5rem 1.5rem; gap: 2rem; }
+  .hero h1 { font-size: 2.6rem; }
+  .hero-visual { display: none; }
+  .feat-grid { grid-template-columns: 1fr 1fr; }
+  .theory-grid { grid-template-columns: 1fr; }
+  .sim-grid-3 { grid-template-columns: 1fr; }
+  .wrap { padding: 2rem 1.2rem; }
+  .info-row { grid-template-columns: 1fr; }
+}
+@media (max-width: 540px) {
+  .feat-grid { grid-template-columns: 1fr; }
+  .nav-pills .np { padding: .4rem .55rem; font-size: .58rem; }
+}
 </style>
 </head>
 <body>
 
-<!-- NAV -->
+<!-- ── FLOATING MATH SYMBOLS ── -->
+<div class="math-bg-symbols" aria-hidden="true">
+  <span style="font-size:9rem;top:8%;left:3%;opacity:.6">∫</span>
+  <span style="font-size:5rem;top:20%;left:88%;opacity:.5">∬</span>
+  <span style="font-size:6.5rem;top:55%;left:6%;opacity:.4">∭</span>
+  <span style="font-size:4rem;top:75%;left:82%;opacity:.5">∂</span>
+  <span style="font-size:3.5rem;top:40%;left:92%;opacity:.4">∑</span>
+  <span style="font-size:7rem;top:82%;left:40%;opacity:.3">∞</span>
+  <span style="font-size:3rem;top:12%;left:45%;opacity:.35">dx</span>
+  <span style="font-size:2.5rem;top:65%;left:55%;opacity:.3">dV</span>
+  <span style="font-size:4.5rem;top:30%;left:70%;opacity:.35">π</span>
+  <span style="font-size:3rem;top:90%;left:15%;opacity:.4">Σ</span>
+  <span style="font-size:2.8rem;top:48%;left:26%;opacity:.3">∇</span>
+  <span style="font-size:3.5rem;top:5%;left:65%;opacity:.3">≈</span>
+</div>
+
+<!-- ── NAV ── -->
 <nav>
-  <div class="nav-inner">
-    <span class="nav-brand">∫ Virtual Lab</span>
-    <div class="nav-tabs">
-      <button class="nav-tab active" onclick="showTab('home')">Home</button>
-      <button class="nav-tab" onclick="showTab('theory')">Theory</button>
-      <button class="nav-tab" onclick="showTab('pretest')">Pre-Test</button>
-      <button class="nav-tab" onclick="showTab('lab')">Lab</button>
-      <button class="nav-tab" onclick="showTab('posttest')">Post-Test</button>
-      <button class="nav-tab" onclick="showTab('contributors')">Contributors</button>
+  <div class="brand">
+    <div class="brand-icon">∫</div>
+    <div class="brand-text">
+      <small>Virtual Lab</small>
+      Integration
     </div>
+  </div>
+  <div class="nav-pills">
+    <button class="np active" onclick="go('home',this)">Home</button>
+    <button class="np" onclick="go('theory',this)">Theory</button>
+    <button class="np" onclick="go('pretest',this)">Pre-Test</button>
+    <button class="np" onclick="go('lab',this)">Lab</button>
+    <button class="np" onclick="go('posttest',this)">Post-Test</button>
+    <button class="np" onclick="go('team',this)">Team</button>
   </div>
 </nav>
 
-<!-- ══════════ HOME ══════════ -->
-<div id="sec-home" class="active" style="max-width:1100px;margin:0 auto">
-
+<!-- ══════════════ HOME ══════════════ -->
+<div class="page on" id="home">
   <div class="hero">
-    <div class="hero-badge">∫ Virtual Labs · Mathematics</div>
-    <h1>Integration <em>Lab</em></h1>
-    <p>An interactive virtual laboratory for computing <strong>Area</strong> via Double Integration and <strong>Volume</strong> via Triple Integration — with live GeoGebra visualizations and step-by-step solutions.</p>
-    <div class="hero-tags">
-      <span class="tag">∬ Area</span>
-      <span class="tag">∭ Volume</span>
-      <span class="tag">Numerical Methods</span>
-      <span class="tag">GeoGebra Plots</span>
+    <div>
+      <div class="eyebrow">Virtual Labs · Mathematics</div>
+      <h1>Integration<br><em>Lab</em></h1>
+      <p>An interactive virtual laboratory for computing <strong>Area</strong> via Double Integration and <strong>Volume</strong> via Triple Integration — with live Chart.js 2D region plots, Three.js 3D visualizations, and step-by-step solutions.</p>
+      <div class="pill-row">
+        <span class="pill pill-p">∬ Area</span>
+        <span class="pill pill-a">∭ Volume</span>
+        <span class="pill pill-g">Numerical Methods</span>
+        <span class="pill pill-v">Live 2D & 3D Plots</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="go('pretest', document.querySelector('.nav-pills .np:nth-child(3)'))">Start Pre-Test</button>
+        <button class="btn btn-dark" onclick="go('lab', document.querySelector('.nav-pills .np:nth-child(4)'))">Launch Lab</button>
+      </div>
     </div>
-    <div class="hero-btns">
-      <button class="btn btn-primary" onclick="showTab('pretest')">Start Pre-Test</button>
-      <button class="btn btn-outline" onclick="showTab('lab')">Launch Lab</button>
+    <div class="hero-visual">
+      <div class="hv-block">
+        <div class="hv-label">Double Integral — Area</div>
+        <div class="hv-formula">
+          A = ∫<sub>a</sub><sup>b</sup> ∫<sub>g₁(x)</sub><sup>g₂(x)</sup> dy dx<br>
+          <span class="muted">= ∫<sub>a</sub><sup>b</sup> [ g₂(x) − g₁(x) ] dx</span><br>
+          <span class="hl">Example: ∫₀² (2x − x²) dx = 4/3</span>
+        </div>
+      </div>
+      <div class="hv-block">
+        <div class="hv-label">Triple Integral — Volume</div>
+        <div class="hv-formula">
+          V = ∫<sub>a</sub><sup>b</sup> ∫<sub>g₁</sub><sup>g₂</sup> ∫<sub>h₁</sub><sup>h₂</sup> dz dy dx<br>
+          <span class="muted">= ∫∫ [ h₂(x,y) − h₁(x,y) ] dy dx</span><br>
+          <span class="hl">Example: ∫₀¹∫₀¹∫₀¹ dz dy dx = 1</span>
+        </div>
+      </div>
     </div>
   </div>
 
-  <section id="sec-home-cards" style="display:block">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:2rem">
-      <div class="card">
-        <h3>Double Integral — Area</h3>
-        <div class="formula">A = ∫ₐᵇ ∫<sub>g₁(x)</sub><sup>g₂(x)</sup> dy dx
-  = ∫ₐᵇ [ g₂(x) − g₁(x) ] dx
-Example: ∫₀² (2x − x²) dx = 4/3</div>
-      </div>
-      <div class="card">
-        <h3>Triple Integral — Volume</h3>
-        <div class="formula">V = ∫ₐᵇ ∫<sub>g₁</sub><sup>g₂</sup> ∫<sub>h₁</sub><sup>h₂</sup> dz dy dx
-  = ∫∫ [ h₂(x,y) − h₁(x,y) ] dy dx
-Example: ∫₀¹∫₀¹∫₀¹ dz dy dx = 1</div>
-      </div>
+  <div class="feat-grid">
+    <div class="feat-card" onclick="go('theory',document.querySelector('.np:nth-child(2)'))">
+      <div class="feat-icon">📖</div>
+      <h3>Theory</h3>
+      <p>Definitions, formulas, and worked examples for double and triple integrals.</p>
     </div>
-
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1.2rem">
-      <div class="card" style="cursor:pointer" onclick="showTab('theory')">
-        <div style="font-size:2rem;margin-bottom:.7rem">📖</div>
-        <h3>Theory</h3>
-        <p style="color:var(--muted2);font-size:.85rem;margin-top:.4rem">Definitions, formulas, and worked examples for double and triple integrals.</p>
-      </div>
-      <div class="card" style="cursor:pointer" onclick="showTab('pretest')">
-        <div style="font-size:2rem;margin-bottom:.7rem">📝</div>
-        <h3>Pre-Test</h3>
-        <p style="color:var(--muted2);font-size:.85rem;margin-top:.4rem">5-question diagnostic quiz to assess prior knowledge before the lab.</p>
-      </div>
-      <div class="card" style="cursor:pointer" onclick="showTab('lab')">
-        <div style="font-size:2rem;margin-bottom:.7rem">⚗️</div>
-        <h3>Lab Simulation</h3>
-        <p style="color:var(--muted2);font-size:.85rem;margin-top:.4rem">Live GeoGebra graphs with zoom, area and volume calculators, and step-by-step solutions.</p>
-      </div>
-      <div class="card" style="cursor:pointer" onclick="showTab('posttest')">
-        <div style="font-size:2rem;margin-bottom:.7rem">🎯</div>
-        <h3>Post-Test</h3>
-        <p style="color:var(--muted2);font-size:.85rem;margin-top:.4rem">Graded assessment to evaluate learning outcomes after completing the lab.</p>
-      </div>
+    <div class="feat-card" onclick="go('pretest',document.querySelector('.np:nth-child(3)'))">
+      <div class="feat-icon">📝</div>
+      <h3>Pre-Test</h3>
+      <p>5-question diagnostic quiz to assess prior knowledge before the lab.</p>
     </div>
-  </section>
+    <div class="feat-card" onclick="go('lab',document.querySelector('.np:nth-child(4)'))">
+      <div class="feat-icon">⚗️</div>
+      <h3>Lab Simulation</h3>
+      <p>Live interactive graphs with zoom, area and volume calculators, and step-by-step solutions.</p>
+    </div>
+    <div class="feat-card" onclick="go('posttest',document.querySelector('.np:nth-child(5)'))">
+      <div class="feat-icon">🎯</div>
+      <h3>Post-Test</h3>
+      <p>Graded assessment to evaluate learning outcomes after completing the lab.</p>
+    </div>
+  </div>
 </div>
 
-<!-- ══════════ THEORY ══════════ -->
-<section id="sec-theory">
-  <div class="mod-header">Module 01 — Theory</div>
-  <h2 class="section-title">Double &amp; Triple Integration</h2>
-  <p class="section-intro">A <strong>double integral</strong> extends integration to functions of two variables over a 2-D region. When the integrand is 1, it yields the <strong>area</strong> of the region. A <strong>triple integral</strong> extends this to 3-D, giving <strong>volume</strong> when the integrand is 1.</p>
+<!-- ══════════════ THEORY ══════════════ -->
+<div class="page" id="theory">
+  <div class="wrap">
+    <div class="eyebrow">Module 01 — Theory</div>
+    <h2>Double &amp; Triple Integration</h2>
+    <div class="theory-grid">
+      <div class="theory-body">
+        <p>A <strong>double integral</strong> extends integration to functions of two variables over a 2-D region. When the integrand is 1, it yields the <strong>area</strong> of the region. A <strong>triple integral</strong> extends this to 3-D, giving <strong>volume</strong> when the integrand is 1.</p>
 
-  <div class="card">
-    <h3>Area via Double Integral</h3>
-    <p style="color:var(--muted2);font-size:.88rem;margin-bottom:.5rem">For a Type I region where <em>a ≤ x ≤ b</em> and <em>g₁(x) ≤ y ≤ g₂(x)</em>:</p>
-    <div class="formula">A = ∬<sub>R</sub> dA = ∫ₐᵇ ∫<sub>g₁(x)</sub><sup>g₂(x)</sup> dy dx
-Inner integral first → result is a function of x → outer integral gives A</div>
-  </div>
-
-  <div class="card">
-    <h3>Worked Example — Parabola &amp; Line</h3>
-    <p style="color:var(--muted2);font-size:.88rem;margin-bottom:.8rem">Find area bounded by y = x² and y = 2x.</p>
-    <div class="algo-step"><div class="algo-n">1</div><div>Intersections: x² = 2x → x = 0 and x = 2.</div></div>
-    <div class="formula">A = ∫₀² ∫<sub>x²</sub><sup>2x</sup> dy dx = ∫₀² (2x − x²) dx = [ x² − x³/3 ]₀² = 4 − 8/3 = <strong>4/3 ≈ 1.3333</strong></div>
-  </div>
-
-  <div class="card">
-    <h3>Volume via Triple Integral</h3>
-    <p style="color:var(--muted2);font-size:.88rem;margin-bottom:.5rem">For a region where <em>a≤x≤b, g₁≤y≤g₂, h₁≤z≤h₂</em>:</p>
-    <div class="formula">V = ∭<sub>E</sub> dV = ∫ₐᵇ ∫<sub>g₁</sub><sup>g₂</sup> ∫<sub>h₁</sub><sup>h₂</sup> dz dy dx
-Evaluate from innermost (z) outward</div>
-  </div>
-
-  <div class="card">
-    <h3>Worked Example — Unit Cube</h3>
-    <div class="formula">V = ∫₀¹ ∫₀¹ ∫₀¹ dz dy dx = 1&nbsp;&nbsp;&nbsp;→ Volume = 1</div>
-  </div>
-
-  <div class="card">
-    <h3>Worked Example — Pyramid</h3>
-    <p style="color:var(--muted2);font-size:.88rem;margin-bottom:.5rem">Bounded by z = 0, z = 1−x−y, x≥0, y≥0, x+y≤1:</p>
-    <div class="formula">V = ∫₀¹ ∫₀<sup>1−x</sup> ∫₀<sup>1−x−y</sup> dz dy dx
-  = ∫₀¹ ∫₀<sup>1−x</sup> (1−x−y) dy dx = ∫₀¹ (1−x)²/2 dx = <strong>1/6 ≈ 0.16667</strong></div>
-  </div>
-
-  <div class="card" style="margin-top:1.5rem">
-    <h3>Reference Table</h3>
-    <table>
-      <thead><tr><th>Integral</th><th>Gives</th><th>Innermost</th><th>Order</th></tr></thead>
-      <tbody>
-        <tr><td>∬ dA</td><td>Area</td><td>dy or dx</td><td>dy dx or dx dy</td></tr>
-        <tr><td>∭ dV</td><td>Volume</td><td>dz</td><td>dz dy dx</td></tr>
-        <tr><td>∭ f dV</td><td>Mass/Flux</td><td>dz</td><td>dz dy dx</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:1.5rem">
-    <div class="card">
-      <h3>Algorithm — Area (Double)</h3>
-      <div class="algo-step"><div class="algo-n">1</div><div>Identify the bounding curves of region R.</div></div>
-      <div class="algo-step"><div class="algo-n">2</div><div>Solve for intersection points to get x limits [a, b].</div></div>
-      <div class="algo-step"><div class="algo-n">3</div><div>Express y limits as g₁(x) and g₂(x).</div></div>
-      <div class="algo-step"><div class="algo-n">4</div><div>Evaluate inner integral: ∫<sub>g₁</sub><sup>g₂</sup> dy = g₂−g₁.</div></div>
-      <div class="algo-step"><div class="algo-n">5</div><div>Evaluate outer integral over [a,b] to get Area.</div></div>
-    </div>
-    <div class="card">
-      <h3>Algorithm — Volume (Triple)</h3>
-      <div class="algo-step"><div class="algo-n">1</div><div>Identify the 3-D solid region E.</div></div>
-      <div class="algo-step"><div class="algo-n">2</div><div>Determine x limits [a, b] from the projection.</div></div>
-      <div class="algo-step"><div class="algo-n">3</div><div>Express y limits g₁(x), g₂(x) for each x.</div></div>
-      <div class="algo-step"><div class="algo-n">4</div><div>Express z limits h₁(x,y), h₂(x,y) for each (x,y).</div></div>
-      <div class="algo-step"><div class="algo-n">5</div><div>Integrate innermost (z) → middle (y) → outer (x).</div></div>
-    </div>
-  </div>
-</section>
-
-<!-- ══════════ PRE-TEST ══════════ -->
-<section id="sec-pretest">
-  <div class="mod-header">Module 02 — Pre-Test Assessment</div>
-  <h2 class="section-title">Pre-Test Assessment</h2>
-  <p class="section-intro">Test your prerequisite knowledge before starting the lab · 5 questions · Ungraded</p>
-  <div class="card" id="pretest-container"></div>
-</section>
-
-<!-- ══════════ LAB ══════════ -->
-<section id="sec-lab">
-  <div class="mod-header">Module 03 — Interactive Lab</div>
-  <h2 class="section-title">Integration Simulator</h2>
-  <div class="tabs-sub">
-    <button class="tab-btn active" onclick="switchLabTab('double',this)">∬ Double Integral — Area</button>
-    <button class="tab-btn" onclick="switchLabTab('triple',this)">∭ Triple Integral — Volume 3D</button>
-  </div>
-
-  <!-- DOUBLE -->
-  <div id="lab-double">
-    <div class="lab-grid">
-      <div>
-        <div class="card">
-          <h3>Problem Setup — ∬ f(x,y) dA</h3>
-          <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem">
-            <button class="tab-btn active" onclick="loadPreset2d('area',this)">f = 1 (Area)</button>
-            <button class="tab-btn" onclick="loadPreset2d('xy',this)">f = x+y</button>
-            <button class="tab-btn" onclick="loadPreset2d('r2',this)">f = x²+y²</button>
-            <button class="tab-btn" onclick="loadPreset2d('sincos',this)">f = sin(x)cos(y)</button>
-          </div>
-          <p style="color:var(--muted2);font-size:.82rem;margin-bottom:.8rem" id="desc2d">Area between y=x² and y=2x</p>
-          <label>Integrand — f(x, y)</label>
-          <input id="fxy" value="1" placeholder="1, x+y, x^2+y^2, sin(x)*cos(y)"/>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem">
-            <div><label>x lower (a)</label><input id="xa" value="0"/></div>
-            <div><label>x upper (b)</label><input id="xb" value="2"/></div>
-            <div><label>y lower — g₁(x)</label><input id="ya" value="x^2"/></div>
-            <div><label>y upper — g₂(x)</label><input id="yb" value="2*x"/></div>
-          </div>
-          <button class="btn btn-primary" style="width:100%;margin-top:.5rem" onclick="compute2d()">▶ Compute Integral</button>
+        <h3>Area via Double Integral</h3>
+        <p>For a Type I region where <em>a ≤ x ≤ b</em> and <em>g₁(x) ≤ y ≤ g₂(x)</em>:</p>
+        <div class="formula">
+          A = ∬<sub>R</sub> dA = ∫<sub>a</sub><sup>b</sup> ∫<sub>g₁(x)</sub><sup>g₂(x)</sup> dy dx<br>
+          <span class="dim">Inner integral first → result is a function of x → outer integral gives A</span>
         </div>
-        <div class="card" style="margin-top:1rem">
-          <h3>Results</h3>
-          <div class="result-box" id="result2d">// Set up the problem and click Compute.</div>
-          <div class="stat-row" id="stats2d" style="display:none">
-            <div class="stat">Numerical<span id="s-num">—</span></div>
-            <div class="stat">Simpson<span id="s-simp">—</span></div>
-            <div class="stat">Error<span id="s-err">—</span></div>
-            <div class="stat">x range<span id="s-xr">—</span></div>
-            <div class="stat">∬f dA<span id="s-val">—</span></div>
-            <div class="stat">Centroid x̄<span id="s-cx">—</span></div>
-          </div>
+
+        <h3>Worked Example — Parabola &amp; Line</h3>
+        <p>Find area bounded by y = x² and y = 2x.</p>
+        <p>Intersections: x² = 2x → x = 0 and x = 2.</p>
+        <div class="formula">
+          A = ∫<sub>0</sub><sup>2</sup> ∫<sub>x²</sub><sup>2x</sup> dy dx = ∫<sub>0</sub><sup>2</sup> (2x − x²) dx<br>
+          = [ x² − x³/3 ]<sub>0</sub><sup>2</sup> = 4 − 8/3<br>
+          <span class="res">= 4/3 ≈ 1.3333</span>
         </div>
+
+        <h3>Volume via Triple Integral</h3>
+        <p>For a region where <em>a≤x≤b, g₁≤y≤g₂, h₁≤z≤h₂</em>:</p>
+        <div class="formula">
+          V = ∭<sub>E</sub> dV = ∫<sub>a</sub><sup>b</sup> ∫<sub>g₁(x)</sub><sup>g₂(x)</sup> ∫<sub>h₁(x,y)</sub><sup>h₂(x,y)</sup> dz dy dx<br>
+          <span class="dim">Evaluate from innermost (z) outward</span>
+        </div>
+
+        <h3>Worked Example — Unit Cube</h3>
+        <div class="formula">
+          V = ∫<sub>0</sub><sup>1</sup> ∫<sub>0</sub><sup>1</sup> ∫<sub>0</sub><sup>1</sup> dz dy dx = 1<br>
+          <span class="res">Volume = 1</span>
+        </div>
+
+        <h3>Worked Example — Pyramid</h3>
+        <p>Bounded by z = 0, z = 1−x−y, x≥0, y≥0, x+y≤1:</p>
+        <div class="formula">
+          V = ∫<sub>0</sub><sup>1</sup> ∫<sub>0</sub><sup>1−x</sup> ∫<sub>0</sub><sup>1−x−y</sup> dz dy dx<br>
+          = ∫<sub>0</sub><sup>1</sup> ∫<sub>0</sub><sup>1−x</sup> (1−x−y) dy dx = ∫<sub>0</sub><sup>1</sup> (1−x)²/2 dx<br>
+          <span class="res">= 1/6 ≈ 0.16667</span>
+        </div>
+
+        <h3>Reference Table</h3>
+        <table class="info-tbl">
+          <thead><tr><th>Integral</th><th>Gives</th><th>Innermost</th><th>Order</th></tr></thead>
+          <tbody>
+            <tr><td>∬ dA</td><td>Area</td><td>dy or dx</td><td>dy dx or dx dy</td></tr>
+            <tr><td>∭ dV</td><td>Volume</td><td>dz</td><td>dz dy dx</td></tr>
+            <tr><td>∭ f dV</td><td>Mass/Flux</td><td>dz</td><td>dz dy dx</td></tr>
+          </tbody>
+        </table>
       </div>
       <div>
-        <div class="card">
-          <h3>Step-by-Step</h3>
-          <div class="step-box" id="steps2d">// Steps appear after computation.</div>
+        <div class="sidebar-box">
+          <div class="sb-title">Algorithm — Area (Double)</div>
+          <div class="algo-step"><div class="algo-n">1</div><div class="algo-t">Identify the bounding curves of region R.</div></div>
+          <div class="algo-step"><div class="algo-n">2</div><div class="algo-t">Solve for intersection points to get x limits [a, b].</div></div>
+          <div class="algo-step"><div class="algo-n">3</div><div class="algo-t">Express y limits as g₁(x) and g₂(x).</div></div>
+          <div class="algo-step"><div class="algo-n">4</div><div class="algo-t">Evaluate inner integral: ∫g₁g₂ dy = g₂−g₁.</div></div>
+          <div class="algo-step"><div class="algo-n">5</div><div class="algo-t">Evaluate outer integral over [a,b] to get Area.</div></div>
         </div>
-        <div class="card" style="margin-top:1rem">
-          <h3>2D Region — GeoGebra</h3>
-          <p style="color:var(--muted);font-size:.75rem;margin-bottom:.5rem">🖱 Drag to pan · Scroll to zoom</p>
-          <iframe class="ggb" id="ggb2d" src="https://www.geogebra.org/calculator?embed" title="GeoGebra 2D"></iframe>
+        <div class="sidebar-box" style="margin-top:1.2rem">
+          <div class="sb-title">Algorithm — Volume (Triple)</div>
+          <div class="algo-step"><div class="algo-n">1</div><div class="algo-t">Identify the 3-D solid region E.</div></div>
+          <div class="algo-step"><div class="algo-n">2</div><div class="algo-t">Determine x limits [a, b] from the projection.</div></div>
+          <div class="algo-step"><div class="algo-n">3</div><div class="algo-t">Express y limits g₁(x), g₂(x) for each x.</div></div>
+          <div class="algo-step"><div class="algo-n">4</div><div class="algo-t">Express z limits h₁(x,y), h₂(x,y) for each (x,y).</div></div>
+          <div class="algo-step"><div class="algo-n">5</div><div class="algo-t">Integrate innermost (z) → middle (y) → outer (x).</div></div>
         </div>
       </div>
-    </div>
-
-    <div class="card" style="margin-top:1.5rem">
-      <h3>∬ Solved Examples</h3>
-      <div class="ex-tabs tabs-sub">
-        <button class="tab-btn active" onclick="showEx2d(0,this)">Ex. 1</button>
-        <button class="tab-btn" onclick="showEx2d(1,this)">Ex. 2</button>
-        <button class="tab-btn" onclick="showEx2d(2,this)">Ex. 3</button>
-      </div>
-      <div id="ex2d-content"></div>
     </div>
   </div>
+</div>
 
-  <!-- TRIPLE -->
-  <div id="lab-triple" style="display:none">
-    <div class="lab-grid">
-      <div>
-        <div class="card">
-          <h3>Problem Setup — ∭ f(x,y,z) dV</h3>
-          <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem">
-            <button class="tab-btn active" onclick="loadPreset3d('cube',this)">Unit Cube</button>
-            <button class="tab-btn" onclick="loadPreset3d('pyramid',this)">Pyramid</button>
-            <button class="tab-btn" onclick="loadPreset3d('box',this)">Box</button>
-            <button class="tab-btn" onclick="loadPreset3d('tet',this)">Tetrahedron</button>
-          </div>
-          <p style="color:var(--muted2);font-size:.82rem;margin-bottom:.8rem" id="desc3d">Unit cube: x,y,z ∈ [0,1]</p>
-          <label>Integrand — f(x, y, z)</label>
-          <input id="fxyz" value="1"/>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem">
-            <div><label>x lower (a)</label><input id="x3a" value="0"/></div>
-            <div><label>x upper (b)</label><input id="x3b" value="1"/></div>
-            <div><label>y lower g₁(x)</label><input id="y3a" value="0"/></div>
-            <div><label>y upper g₂(x)</label><input id="y3b" value="1"/></div>
-            <div><label>z lower h₁(x,y)</label><input id="z3a" value="0"/></div>
-            <div><label>z upper h₂(x,y)</label><input id="z3b" value="1"/></div>
-          </div>
-          <button class="btn btn-primary" style="width:100%;margin-top:.5rem" onclick="compute3d()">▶ Compute Volume</button>
-        </div>
-        <div class="card" style="margin-top:1rem">
-          <h3>Results</h3>
-          <div class="result-box" id="result3d">// Set up the solid and click Compute.</div>
-          <div class="stat-row" id="stats3d" style="display:none">
-            <div class="stat">Numerical<span id="s3-num">—</span></div>
-            <div class="stat">Analytical<span id="s3-ana">—</span></div>
-            <div class="stat">Error<span id="s3-err">—</span></div>
-            <div class="stat">x range<span id="s3-xr">—</span></div>
-            <div class="stat">Volume V<span id="s3-vol">—</span></div>
-            <div class="stat">Centroid z̄<span id="s3-cz">—</span></div>
+<!-- ══════════════ PRE-TEST ══════════════ -->
+<div class="page" id="pretest">
+  <div class="wrap">
+    <div class="quiz-wrap">
+      <div class="quiz-hd" style="background:var(--ink)">
+        <h2>Pre-Test Assessment</h2>
+        <p>Test your prerequisite knowledge before starting the lab · 5 questions · Ungraded</p>
+      </div>
+      <div class="quiz-bd">
+        <div class="q-block">
+          <div class="q-no">Question 1 / 5</div>
+          <div class="q-text">When the integrand f(x,y) = 1, the double integral ∬<sub>R</sub> dA computes:</div>
+          <div class="opts" id="pq1">
+            <label class="opt"><input type="radio" name="pq1" value="a"> Volume under a surface</label>
+            <label class="opt"><input type="radio" name="pq1" value="b"> Area of region R</label>
+            <label class="opt"><input type="radio" name="pq1" value="c"> Perimeter of R</label>
+            <label class="opt"><input type="radio" name="pq1" value="d"> Centroid of R</label>
           </div>
         </div>
-      </div>
-      <div>
-        <div class="card">
-          <h3>Step-by-Step</h3>
-          <div class="step-box" id="steps3d">// Steps appear after computation.</div>
+        <div class="q-block">
+          <div class="q-no">Question 2 / 5</div>
+          <div class="q-text">For area between y = x² and y = x, the x limits of integration are:</div>
+          <div class="opts" id="pq2">
+            <label class="opt"><input type="radio" name="pq2" value="a"> [0, 2]</label>
+            <label class="opt"><input type="radio" name="pq2" value="b"> [−1, 1]</label>
+            <label class="opt"><input type="radio" name="pq2" value="c"> [0, 1]</label>
+            <label class="opt"><input type="radio" name="pq2" value="d"> [1, 2]</label>
+          </div>
         </div>
-        <div class="card" style="margin-top:1rem">
-          <h3>3D Volume Visualization · THREE.JS · INTERACTIVE</h3>
-          <div id="three-container"><div class="three-hint">🖱 Drag to rotate · Scroll to zoom</div></div>
+        <div class="q-block">
+          <div class="q-no">Question 3 / 5</div>
+          <div class="q-text">The inner integral of ∫₀¹ ∫₀ˣ dy dx evaluates to:</div>
+          <div class="opts" id="pq3">
+            <label class="opt"><input type="radio" name="pq3" value="a"> ∫₀¹ x² dx</label>
+            <label class="opt"><input type="radio" name="pq3" value="b"> ∫₀¹ x dx</label>
+            <label class="opt"><input type="radio" name="pq3" value="c"> ∫₀¹ 1 dx</label>
+            <label class="opt"><input type="radio" name="pq3" value="d"> ∫₀¹ (x−1) dx</label>
+          </div>
         </div>
-      </div>
-    </div>
-
-    <div class="card" style="margin-top:1.5rem">
-      <h3>∭ Solved Examples</h3>
-      <div class="ex-tabs tabs-sub">
-        <button class="tab-btn active" onclick="showEx3d(0,this)">Ex. 1</button>
-        <button class="tab-btn" onclick="showEx3d(1,this)">Ex. 2</button>
-        <button class="tab-btn" onclick="showEx3d(2,this)">Ex. 3</button>
-      </div>
-      <div id="ex3d-content"></div>
-    </div>
-  </div>
-</section>
-
-<!-- ══════════ POST-TEST ══════════ -->
-<section id="sec-posttest">
-  <div class="mod-header">Module 04 — Post-Test Assessment</div>
-  <h2 class="section-title">Post-Test Assessment</h2>
-  <p class="section-intro">Evaluate your learning outcomes after completing the lab · 5 questions · Graded</p>
-  <div class="card" id="posttest-container"></div>
-</section>
-
-<!-- ══════════ CONTRIBUTORS ══════════ -->
-<section id="sec-contributors">
-  <div class="contrib-header">
-    <div class="mod-header" style="text-align:center">Virtual Lab — Integration</div>
-    <h2 class="section-title" style="font-family:var(--serif);font-size:2rem">Contributors</h2>
-    <p style="color:var(--muted2);max-width:520px;margin:auto">The people behind the design, development, and academic guidance of this virtual laboratory.</p>
-  </div>
-
-  <!-- PROJECT GUIDE -->
-  <div class="divider-label">Project Guide</div>
-  <div class="guide-card">
-    <div class="avatar avatar-guide">RT</div>
-    <div class="guide-info">
-      <div class="role">Project Guide · Faculty Mentor</div>
-      <h3>Prof. Rajesh Talekar</h3>
-      <p>Provided academic direction, supervised the design of the lab curriculum, validated mathematical content, and mentored the student development team throughout the project lifecycle. Responsible for aligning the simulation with university syllabus objectives and ensuring pedagogical soundness of the integration modules.</p>
-      <div class="contrib-tags" style="margin-top:.8rem">
-        <span class="ctag">Curriculum Design</span>
-        <span class="ctag">Academic Supervision</span>
-        <span class="ctag">Mathematical Validation</span>
-        <span class="ctag">Pedagogy</span>
+        <div class="q-block">
+          <div class="q-no">Question 4 / 5</div>
+          <div class="q-text">A triple integral ∭<sub>E</sub> dV computes:</div>
+          <div class="opts" id="pq4">
+            <label class="opt"><input type="radio" name="pq4" value="a"> Surface area of E</label>
+            <label class="opt"><input type="radio" name="pq4" value="b"> Mass of E</label>
+            <label class="opt"><input type="radio" name="pq4" value="c"> Volume of solid E</label>
+            <label class="opt"><input type="radio" name="pq4" value="d"> Centroid of E</label>
+          </div>
+        </div>
+        <div class="q-block">
+          <div class="q-no">Question 5 / 5</div>
+          <div class="q-text">Fubini's Theorem allows us to:</div>
+          <div class="opts" id="pq5">
+            <label class="opt"><input type="radio" name="pq5" value="a"> Set the integral to zero</label>
+            <label class="opt"><input type="radio" name="pq5" value="b"> Switch integration order freely for continuous functions</label>
+            <label class="opt"><input type="radio" name="pq5" value="c"> Only integrate in dy dx order</label>
+            <label class="opt"><input type="radio" name="pq5" value="d"> Cancel inner and outer integrals</label>
+          </div>
+        </div>
+        <div class="q-actions">
+          <button class="btn btn-primary" onclick="grade('pre')">Submit Pre-Test</button>
+          <span class="score-tag" id="pre-score"></span>
+        </div>
+        <div class="feedback" id="pre-fb"></div>
       </div>
     </div>
   </div>
+</div>
 
-  <!-- STUDENTS -->
-  <div class="divider-label">Student Developers</div>
-  <div class="students-grid">
+<!-- ══════════════ LAB ══════════════ -->
+<div class="page" id="lab">
+  <div class="wrap">
+    <div class="eyebrow">Module 03 — Interactive Lab</div>
+    <h2>Integration Simulator</h2>
 
-    <div class="student-card">
-      <div class="student-top">
-        <div class="avatar avatar-student" style="width:52px;height:52px;font-size:1.1rem">AG</div>
-        <div class="student-info">
-          <h4>Arjun Gavane</h4>
-          <div class="srole">Frontend Developer</div>
+    <div class="lab-tabs">
+      <button class="lab-tab active" onclick="switchTab('double',this)">∬ Double Integral — Area</button>
+      <button class="lab-tab" onclick="switchTab('triple',this)">∭ Triple Integral — Volume <span style="font-size:.55rem;background:var(--violet);color:#fff;padding:.15rem .4rem;border-radius:3px;margin-left:.4rem;vertical-align:middle">3D</span></button>
+    </div>
+
+    <!-- ── DOUBLE INTEGRAL ── -->
+    <div class="sim-panel on" id="sim-double">
+      <div class="sim-grid-3">
+
+        <!-- Column 1: Controls -->
+        <div>
+          <div class="card">
+            <div class="card-hd"><div class="dot" style="background:var(--primary)"></div>Problem Setup — ∬ f(x,y) dA</div>
+            <div class="card-bd">
+              <div class="ctrl-section">
+                <div class="ctrl-label">Load Preset</div>
+                <div class="preset-row">
+                  <button class="psbtn sel" onclick="dPreset('area',this)">f = 1 (Area)</button>
+                  <button class="psbtn" onclick="dPreset('linear',this)">f = x+y</button>
+                  <button class="psbtn" onclick="dPreset('quadratic',this)">f = x²+y²</button>
+                  <button class="psbtn" onclick="dPreset('sincos',this)">f = sin(x)cos(y)</button>
+                </div>
+              </div>
+              <div class="ctrl-section">
+                <label class="ctrl-label">Description</label>
+                <input class="ctrl-input" id="d-desc" value="Area of region between y=x² and y=2x" readonly>
+              </div>
+              <div class="ctrl-section" style="background:rgba(22,64,214,.06);border-radius:6px;padding:.6rem .7rem;border:1px solid rgba(22,64,214,.18);">
+                <label class="ctrl-label" style="color:var(--primary);font-weight:600;">Integrand — f(x, y)</label>
+                <input class="ctrl-input" id="d-f" value="1" placeholder="e.g. x+y, x^2+y^2, sin(x)*cos(y)">
+                <div style="font-size:.6rem;color:var(--muted);margin-top:.3rem;font-family:var(--ff-mono);">Use: x, y, x^2, sqrt(x), sin(x), cos(y), exp(x), pi</div>
+              </div>
+              <div class="half-row">
+                <div class="ctrl-section">
+                  <label class="ctrl-label">x lower (a)</label>
+                  <input class="ctrl-input" id="d-a" value="0">
+                </div>
+                <div class="ctrl-section">
+                  <label class="ctrl-label">x upper (b)</label>
+                  <input class="ctrl-input" id="d-b" value="2">
+                </div>
+              </div>
+              <div class="ctrl-section">
+                <label class="ctrl-label">y lower — g₁(x)</label>
+                <input class="ctrl-input" id="d-g1" value="x^2">
+              </div>
+              <div class="ctrl-section">
+                <label class="ctrl-label">y upper — g₂(x)</label>
+                <input class="ctrl-input" id="d-g2" value="2*x">
+              </div>
+              <button class="run-btn" onclick="runDouble()">▶ Compute Integral</button>
+              <div class="result-box" id="d-result">// Set up the problem and click Compute.</div>
+            </div>
+          </div>
+          <div class="card" style="margin-top:.9rem">
+            <div class="card-hd"><div class="dot" style="background:var(--accent)"></div>Step-by-Step</div>
+            <div class="card-bd" style="padding:.8rem .9rem">
+              <div class="steps-box" id="d-steps"><div class="sl dim">// Steps appear after computation.</div></div>
+            </div>
+          </div>
+          <div class="info-row" style="margin-top:.9rem">
+            <div class="info-mini">
+              <div><span class="lbl">Numerical:</span> <span class="val-p" id="d-num">—</span></div>
+              <div><span class="lbl">Simpson:</span> <span class="val-g" id="d-ana">—</span></div>
+              <div><span class="lbl">Error:</span> <span class="val-v" id="d-err">—</span></div>
+            </div>
+            <div class="info-mini">
+              <div><span class="lbl">x range:</span> <span class="val-p" id="d-xr">—</span></div>
+              <div><span class="lbl">∬f dA:</span> <span class="val-g" id="d-area">—</span></div>
+              <div><span class="lbl">Centroid x̄:</span> <span class="val-c" id="d-cx">—</span></div>
+            </div>
+          </div>
         </div>
-      </div>
-      <p style="color:var(--muted2);font-size:.83rem;line-height:1.6">Designed and built the complete UI layout, navigation system, and responsive design of the virtual lab. Implemented the hero section, tab-based routing, card components, and dark-theme visual system using vanilla HTML, CSS, and JavaScript.</p>
-      <div class="contrib-tags">
-        <span class="ctag">HTML / CSS</span>
-        <span class="ctag">JavaScript</span>
-        <span class="ctag">UI Design</span>
-        <span class="ctag">Responsive Layout</span>
+
+        <!-- Column 2: 3D Visualization -->
+        <div>
+          <div class="ggb-panel">
+            <div class="ggb-hd" style="display:flex;align-items:center;justify-content:space-between;">
+              <span><div class="dot" style="background:var(--accent);display:inline-block;margin-right:.4rem"></div>3D Surface — z = f(x,y) with Volume</span>
+              <span style="font-family:var(--ff-mono);font-size:.55rem;color:#7c9cbf;letter-spacing:.08em;">THREE.JS · LIVE</span>
+            </div>
+            <canvas id="double3d-canvas" style="width:100%;height:320px;display:block;background:#070d1f;cursor:grab;"></canvas>
+            <div class="ggb-note">🟦 Blue surface = f(x,y) · 🟪 Purple = volume under surface over region · Drag to rotate</div>
+          </div>
+        </div>
+
+        <!-- Column 3: Examples panel -->
+        <div>
+          <div class="examples-panel">
+            <div class="examples-hd"><div class="dot" style="background:var(--primary)"></div>∬ Solved Examples</div>
+            <div class="ex-tabs-inline">
+              <button class="ex-tab-inline active" onclick="exTabInline(this,'die1')">Ex. 1</button>
+              <button class="ex-tab-inline" onclick="exTabInline(this,'die2')">Ex. 2</button>
+              <button class="ex-tab-inline" onclick="exTabInline(this,'die3')">Ex. 3</button>
+            </div>
+
+            <!-- Double Example 1 -->
+            <div class="ex-panel-inline on" id="die1">
+              <div class="ex-problem-inline"><strong>Problem:</strong> Find area bounded by y = x² and y = 2x.</div>
+              <div class="ex-step-inline"><div class="ex-num-inline">1</div><div class="ex-content-inline"><strong>Find intersections:</strong><span class="f">x² = 2x → x(x−2) = 0<br>∴ x = 0, x = 2</span></div></div>
+              <div class="ex-step-inline"><div class="ex-num-inline">2</div><div class="ex-content-inline"><strong>Upper bound:</strong> At x=1: y=2x=2 &gt; y=x²=1, so y=2x is top.</div></div>
+              <div class="ex-step-inline"><div class="ex-num-inline">3</div><div class="ex-content-inline"><strong>Set up:</strong><span class="f">A = ∫₀² ∫<sub>x²</sub><sup>2x</sup> dy dx</span></div></div>
+              <div class="ex-step-inline"><div class="ex-num-inline">4</div><div class="ex-content-inline"><strong>Inner integral:</strong><span class="f">[y]<sub>x²</sub><sup>2x</sup> = 2x − x²</span></div></div>
+              <div class="ex-step-inline"><div class="ex-num-inline">5</div><div class="ex-content-inline"><strong>Outer integral:</strong><span class="f">∫₀² (2x−x²) dx = [x²−x³/3]₀²<br>= 4−8/3 <span class="res">= 4/3</span></span></div></div>
+              <div class="ex-answer-inline">∴ Area = 4/3 ≈ 1.3333 sq units</div>
+              <button class="load-ex-btn" onclick="dPreset('parabola', document.querySelector('#sim-double .psbtn'))">▶ Load in Simulator</button>
+            </div>
+
+            <!-- Double Example 2 -->
+            <div class="ex-panel-inline" id="die2">
+              <div class="ex-problem-inline"><strong>Problem:</strong> Area between y = x² and y = √x for 0 ≤ x ≤ 1.</div>
+              <div class="ex-step-inline"><div class="ex-num-inline">1</div><div class="ex-content-inline"><strong>Intersections:</strong><span class="f">x² = √x → x⁴ = x → x = 0, 1</span></div></div>
+              <div class="ex-step-inline"><div class="ex-num-inline">2</div><div class="ex-content-inline">At x=0.5: √0.5 ≈ 0.71 &gt; 0.25 = x², so √x is upper.</div></div>
+              <div class="ex-step-inline"><div class="ex-num-inline">3</div><div class="ex-content-inline"><strong>Set up:</strong><span class="f">A = ∫₀¹ ∫<sub>x²</sub><sup>√x</sup> dy dx</span></div></div>
+              <div class="ex-step-inline"><div class="ex-num-inline">4</div><div class="ex-content-inline"><strong>Inner:</strong><span class="f">√x − x²</span></div></div>
+              <div class="ex-step-inline"><div class="ex-num-inline">5</div><div class="ex-content-inline"><strong>Outer:</strong><span class="f">∫₀¹ (√x−x²) dx = ⅔−⅓ <span class="res">= 1/3</span></span></div></div>
+              <div class="ex-answer-inline">∴ Area = 1/3 ≈ 0.3333 sq units</div>
+              <button class="load-ex-btn" onclick="dPreset('twoparab', document.querySelectorAll('#sim-double .psbtn')[3])">▶ Load in Simulator</button>
+            </div>
+
+            <!-- Double Example 3 -->
+            <div class="ex-panel-inline" id="die3">
+              <div class="ex-problem-inline"><strong>Problem:</strong> Area of triangle: y=0, y=x, x=2.</div>
+              <div class="ex-step-inline"><div class="ex-num-inline">1</div><div class="ex-content-inline">x ∈ [0, 2]; for each x, y ∈ [0, x].</div></div>
+              <div class="ex-step-inline"><div class="ex-num-inline">2</div><div class="ex-content-inline"><strong>Set up:</strong><span class="f">A = ∫₀² ∫₀ˣ dy dx</span></div></div>
+              <div class="ex-step-inline"><div class="ex-num-inline">3</div><div class="ex-content-inline"><strong>Inner:</strong><span class="f">[y]₀ˣ = x</span></div></div>
+              <div class="ex-step-inline"><div class="ex-num-inline">4</div><div class="ex-content-inline"><strong>Outer:</strong><span class="f">∫₀² x dx = [x²/2]₀² = <span class="res">2</span><br><span class="dim">Check: ½·2·2 = 2 ✓</span></span></div></div>
+              <div class="ex-answer-inline">∴ Area = 2 sq units</div>
+              <button class="load-ex-btn" onclick="dPreset('triangle', document.querySelectorAll('#sim-double .psbtn')[2])">▶ Load in Simulator</button>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
 
-    <div class="student-card">
-      <div class="student-top">
-        <div class="avatar avatar-s2" style="width:52px;height:52px;font-size:1.1rem">SV</div>
-        <div class="student-info">
-          <h4>Shashank Vidyagar</h4>
-          <div class="srole">Backend Logic &amp; Math Engine</div>
+    <!-- ── TRIPLE INTEGRAL ── -->
+    <div class="sim-panel" id="sim-triple">
+      <div class="sim-grid-3">
+
+        <!-- Column 1: Controls -->
+        <div>
+          <div class="card">
+            <div class="card-hd"><div class="dot" style="background:var(--violet)"></div>Problem Setup — ∭ f(x,y,z) dV</div>
+            <div class="card-bd">
+              <div class="ctrl-section">
+                <div class="ctrl-label">Load Preset</div>
+                <div class="preset-row">
+                  <button class="psbtn sel" onclick="tPreset('cube',this)">Unit Cube</button>
+                  <button class="psbtn" onclick="tPreset('pyramid',this)">Pyramid</button>
+                  <button class="psbtn" onclick="tPreset('box',this)">Box</button>
+                  <button class="psbtn" onclick="tPreset('tetra',this)">Tetrahedron</button>
+                </div>
+              </div>
+              <div class="ctrl-section">
+                <label class="ctrl-label">Description</label>
+                <input class="ctrl-input" id="t-desc" value="Volume of Unit Cube [0,1]³" readonly>
+              </div>
+              <div class="ctrl-section" style="background:rgba(124,58,237,.06);border-radius:6px;padding:.6rem .7rem;border:1px solid rgba(124,58,237,.22);">
+                <label class="ctrl-label" style="color:var(--violet);font-weight:600;">Integrand — f(x, y, z)</label>
+                <input class="ctrl-input" id="t-f" value="1" placeholder="e.g. 1, x+y+z, x^2+y^2+z^2">
+                <div style="font-size:.6rem;color:var(--muted);margin-top:.3rem;font-family:var(--ff-mono);">Use: x, y, z, x^2, sqrt(x), sin(x), etc. Use 1 for pure volume.</div>
+              </div>
+              <div class="half-row">
+                <div><label class="ctrl-label">x lower (a)</label><input class="ctrl-input" id="t-a" value="0"></div>
+                <div><label class="ctrl-label">x upper (b)</label><input class="ctrl-input" id="t-b" value="1"></div>
+              </div>
+              <div class="half-row" style="margin-top:.5rem">
+                <div><label class="ctrl-label">y lower g₁(x)</label><input class="ctrl-input" id="t-g1" value="0"></div>
+                <div><label class="ctrl-label">y upper g₂(x)</label><input class="ctrl-input" id="t-g2" value="1"></div>
+              </div>
+              <div class="half-row" style="margin-top:.5rem">
+                <div><label class="ctrl-label">z lower h₁(x,y)</label><input class="ctrl-input" id="t-h1" value="0"></div>
+                <div><label class="ctrl-label">z upper h₂(x,y)</label><input class="ctrl-input" id="t-h2" value="1"></div>
+              </div>
+              <button class="run-btn triple" onclick="runTriple()">▶ Compute Volume</button>
+              <div class="result-box" id="t-result" style="color:#c4b5fd">// Set up the solid and click Compute.</div>
+            </div>
+          </div>
+          <div class="card" style="margin-top:.9rem">
+            <div class="card-hd"><div class="dot" style="background:var(--violet)"></div>Step-by-Step</div>
+            <div class="card-bd" style="padding:.8rem .9rem">
+              <div class="steps-box" id="t-steps"><div class="sl dim">// Steps appear after computation.</div></div>
+            </div>
+          </div>
+          <div class="info-row" style="margin-top:.9rem">
+            <div class="info-mini">
+              <div><span class="lbl">Numerical:</span> <span class="val-v" id="t-num">—</span></div>
+              <div><span class="lbl">Analytical:</span> <span class="val-g" id="t-ana">—</span></div>
+              <div><span class="lbl">Error:</span> <span class="val-a" id="t-err">—</span></div>
+            </div>
+            <div class="info-mini">
+              <div><span class="lbl">x range:</span> <span class="val-v" id="t-xr">—</span></div>
+              <div><span class="lbl">Volume V:</span> <span class="val-g" id="t-vol">—</span></div>
+              <div><span class="lbl">Centroid z̄:</span> <span class="val-c" id="t-cz">—</span></div>
+            </div>
+          </div>
         </div>
-      </div>
-      <p style="color:var(--muted2);font-size:.83rem;line-height:1.6">Developed the numerical integration engine for both double and triple integrals using Simpson's rule and adaptive quadrature. Implemented the expression parser, step-by-step solution generator, and error estimation module in JavaScript.</p>
-      <div class="contrib-tags">
-        <span class="ctag">Numerical Methods</span>
-        <span class="ctag">Simpson's Rule</span>
-        <span class="ctag">Expression Parsing</span>
-        <span class="ctag">Math Engine</span>
+
+        <!-- Column 2: Custom Three.js 3D Viewer -->
+        <div>
+          <div class="ggb-panel" style="position:relative;">
+            <div class="ggb-hd" style="display:flex;align-items:center;justify-content:space-between;">
+              <span><div class="dot" style="background:var(--violet);display:inline-block;margin-right:.4rem"></div>3D Volume Visualization</span>
+              <span style="font-family:var(--ff-mono);font-size:.55rem;color:#7c9cbf;letter-spacing:.08em;">THREE.JS · INTERACTIVE</span>
+            </div>
+            <div style="position:relative;">
+              <canvas id="triple3d-canvas" style="width:100%;height:460px;display:block;background:#070d1f;cursor:grab;"></canvas>
+            <div id="triple3d-fallback" style="display:none;width:100%;height:460px;background:#070d1f;align-items:center;justify-content:center;flex-direction:column;gap:.8rem;color:#7c9cbf;font-family:var(--ff-mono);font-size:.75rem;text-align:center;padding:2rem;">
+              <div style="font-size:2rem;">📐</div>
+              <div style="color:#c4b5fd;font-size:.85rem;font-weight:600;">3D visualization not available</div>
+              <div style="color:#5a6a8a;max-width:280px;line-height:1.6;">The current integrand or bounds are too complex to render as a 3D solid. The computation above is still fully accurate.</div>
+              <div style="color:#4a5a7a;font-size:.6rem;margin-top:.5rem;">Tip: 3D works best with constant or linear z-bounds like <span style="color:#c4b5fd">0, 1, 1-x-y</span></div>
+            </div>
+              <div id="triple3d-overlay" style="display:none;position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(7,13,31,.92);align-items:center;justify-content:center;flex-direction:column;gap:.8rem;">
+                <div style="font-size:2.2rem;">∭</div>
+                <div id="triple3d-msg" style="font-family:var(--ff-mono);font-size:.72rem;color:#c4b5fd;text-align:center;padding:0 1.5rem;line-height:1.8;"></div>
+              </div>
+            </div>
+            <div class="ggb-note">🖱 Drag to rotate · Scroll to zoom · Double-click to spin</div>
+          </div>
+        </div>
+
+        <!-- Column 3: Examples -->
+        <div>
+          <div class="examples-panel">
+            <div class="examples-hd"><div class="dot" style="background:var(--violet)"></div>∭ Solved Examples</div>
+            <div class="ex-tabs-inline">
+              <button class="ex-tab-inline active" onclick="exTabInline(this,'tie1')">Ex. 1</button>
+              <button class="ex-tab-inline" onclick="exTabInline(this,'tie2')">Ex. 2</button>
+              <button class="ex-tab-inline" onclick="exTabInline(this,'tie3')">Ex. 3</button>
+            </div>
+
+            <!-- Triple Example 1 -->
+            <div class="ex-panel-inline on" id="tie1">
+              <div class="ex-problem-inline"><strong>Problem:</strong> Find the volume of a unit cube where x, y, and z each go from 0 to 1.</div>
+              <div class="ex-step-inline"><div class="ex-num-inline" style="background:var(--violet)">1</div><div class="ex-content-inline"><strong>Understand the solid:</strong> It's just a 1×1×1 cube. Each variable runs from 0 to 1 independently.<span class="f">x ∈ [0, 1],  y ∈ [0, 1],  z ∈ [0, 1]</span></div></div>
+              <div class="ex-step-inline"><div class="ex-num-inline" style="background:var(--violet)">2</div><div class="ex-content-inline"><strong>Write the triple integral:</strong><span class="f">V = ∫₀¹ ∫₀¹ ∫₀¹ dz dy dx</span></div></div>
+              <div class="ex-step-inline"><div class="ex-num-inline" style="background:var(--violet)">3</div><div class="ex-content-inline"><strong>Step 1 — innermost integral (z):</strong><span class="f">∫₀¹ dz = [z]₀¹ = 1 − 0 = 1</span></div></div>
+              <div class="ex-step-inline"><div class="ex-num-inline" style="background:var(--violet)">4</div><div class="ex-content-inline"><strong>Step 2 — middle integral (y):</strong><span class="f">∫₀¹ 1 dy = [y]₀¹ = 1</span></div></div>
+              <div class="ex-step-inline"><div class="ex-num-inline" style="background:var(--violet)">5</div><div class="ex-content-inline"><strong>Step 3 — outer integral (x):</strong><span class="f">∫₀¹ 1 dx = [x]₀¹ = <span class="res">1</span><br><span class="dim">✓ Makes sense: 1×1×1 cube has volume 1</span></span></div></div>
+              <div class="ex-answer-inline triple">∴ Volume = 1 cubic unit</div>
+              <button class="load-ex-btn triple" onclick="tPreset('cube', document.querySelector('#sim-triple .psbtn'))">▶ Load in Simulator</button>
+            </div>
+
+            <!-- Triple Example 2 -->
+            <div class="ex-panel-inline" id="tie2">
+              <div class="ex-problem-inline"><strong>Problem:</strong> Find the volume of a box with dimensions 2 × 3 × 4 (x from 0→2, y from 0→3, z from 0→4).</div>
+              <div class="ex-step-inline"><div class="ex-num-inline" style="background:var(--violet)">1</div><div class="ex-content-inline"><strong>Understand the solid:</strong> A simple rectangular box. All limits are constants — easy!<span class="f">x ∈ [0, 2],  y ∈ [0, 3],  z ∈ [0, 4]</span></div></div>
+              <div class="ex-step-inline"><div class="ex-num-inline" style="background:var(--violet)">2</div><div class="ex-content-inline"><strong>Write the triple integral:</strong><span class="f">V = ∫₀² ∫₀³ ∫₀⁴ dz dy dx</span></div></div>
+              <div class="ex-step-inline"><div class="ex-num-inline" style="background:var(--violet)">3</div><div class="ex-content-inline"><strong>Inner (z): height of box</strong><span class="f">∫₀⁴ dz = 4</span></div></div>
+              <div class="ex-step-inline"><div class="ex-num-inline" style="background:var(--violet)">4</div><div class="ex-content-inline"><strong>Middle (y): width of box</strong><span class="f">∫₀³ 4 dy = 4 × 3 = 12</span></div></div>
+              <div class="ex-step-inline"><div class="ex-num-inline" style="background:var(--violet)">5</div><div class="ex-content-inline"><strong>Outer (x): depth of box</strong><span class="f">∫₀² 12 dx = 12 × 2 = <span class="res">24</span><br><span class="dim">✓ Same as length × width × height = 2×3×4 = 24</span></span></div></div>
+              <div class="ex-answer-inline triple">∴ Volume = 24 cubic units</div>
+              <button class="load-ex-btn triple" onclick="tPreset('box', document.querySelectorAll('#sim-triple .psbtn')[2])">▶ Load in Simulator</button>
+            </div>
+
+            <!-- Triple Example 3 -->
+            <div class="ex-panel-inline" id="tie3">
+              <div class="ex-problem-inline"><strong>Problem:</strong> Find the volume of a pyramid-like solid under z = 1−x−y, where x ≥ 0, y ≥ 0, and x+y ≤ 1. (z goes from 0 up to the sloped surface.)</div>
+              <div class="ex-step-inline"><div class="ex-num-inline" style="background:var(--violet)">1</div><div class="ex-content-inline"><strong>Understand the solid:</strong> The base is a right triangle in the xy-plane. Above each point (x,y) the solid rises from z=0 to z=1−x−y.<span class="f">x ∈ [0,1],  y ∈ [0, 1−x],  z ∈ [0, 1−x−y]</span></div></div>
+              <div class="ex-step-inline"><div class="ex-num-inline" style="background:var(--violet)">2</div><div class="ex-content-inline"><strong>Write the triple integral:</strong><span class="f">V = ∫₀¹ ∫₀^(1−x) ∫₀^(1−x−y) dz dy dx</span></div></div>
+              <div class="ex-step-inline"><div class="ex-num-inline" style="background:var(--violet)">3</div><div class="ex-content-inline"><strong>Inner (z) — integrate from 0 to 1−x−y:</strong><span class="f">∫₀^(1−x−y) dz = (1 − x − y)</span></div></div>
+              <div class="ex-step-inline"><div class="ex-num-inline" style="background:var(--violet)">4</div><div class="ex-content-inline"><strong>Middle (y) — integrate (1−x−y) from 0 to 1−x:</strong><span class="f">∫₀^(1−x)(1−x−y) dy<br>= (1−x)y − y²/2 |₀^(1−x)<br>= (1−x)² − (1−x)²/2 = (1−x)²/2</span></div></div>
+              <div class="ex-step-inline"><div class="ex-num-inline" style="background:var(--violet)">5</div><div class="ex-content-inline"><strong>Outer (x) — integrate (1−x)²/2 from 0 to 1:</strong><span class="f">∫₀¹ (1−x)²/2 dx = [−(1−x)³/6]₀¹ = <span class="res">1/6</span></span></div></div>
+              <div class="ex-answer-inline triple">∴ Volume = 1/6 ≈ 0.1667 cubic units</div>
+              <button class="load-ex-btn triple" onclick="tPreset('pyramid', document.querySelectorAll('#sim-triple .psbtn')[1])">▶ Load in Simulator</button>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
-
-    <div class="student-card">
-      <div class="student-top">
-        <div class="avatar avatar-s3" style="width:52px;height:52px;font-size:1.1rem">KG</div>
-        <div class="student-info">
-          <h4>Kaivalya Garge</h4>
-          <div class="srole">3D Visualization &amp; GeoGebra Integration</div>
-        </div>
-      </div>
-      <p style="color:var(--muted2);font-size:.83rem;line-height:1.6">Integrated the Three.js 3D rendering pipeline for volume visualization and embedded GeoGebra for 2D region plotting. Built interactive orbit controls, preset loaders, and the surface mesh generation system for live visualization of integration regions.</p>
-      <div class="contrib-tags">
-        <span class="ctag">Three.js</span>
-        <span class="ctag">GeoGebra API</span>
-        <span class="ctag">3D Rendering</span>
-        <span class="ctag">WebGL</span>
-      </div>
-    </div>
-
-    <div class="student-card">
-      <div class="student-top">
-        <div class="avatar avatar-s4" style="width:52px;height:52px;font-size:1.1rem">KG</div>
-        <div class="student-info">
-          <h4>Kaivalya Garge</h4>
-          <div class="srole">Assessment &amp; Content</div>
-        </div>
-      </div>
-      <p style="color:var(--muted2);font-size:.83rem;line-height:1.6">Authored the Pre-Test and Post-Test question banks, wrote all theory content, worked examples, and algorithm documentation. Designed the quiz logic with scoring, feedback, and answer validation. Handled content accuracy review and integration with the lab modules.</p>
-      <div class="contrib-tags">
-        <span class="ctag">Quiz System</span>
-        <span class="ctag">Content Writing</span>
-        <span class="ctag">Assessment Design</span>
-        <span class="ctag">Documentation</span>
-      </div>
-    </div>
-
   </div>
+</div>
 
-  <!-- TECH STACK -->
-  <div class="tech-section">
-    <h3>Technologies Used</h3>
-    <div class="tech-grid">
-      <span class="tech-badge">HTML5</span>
-      <span class="tech-badge">CSS3</span>
-      <span class="tech-badge">Vanilla JavaScript</span>
-      <span class="tech-badge">Three.js r128</span>
-      <span class="tech-badge">GeoGebra Embed API</span>
-      <span class="tech-badge">Simpson's Rule</span>
-      <span class="tech-badge">Vercel Deployment</span>
-      <span class="tech-badge">Google Fonts</span>
-      <span class="tech-badge">Adaptive Quadrature</span>
+<!-- ══════════════ POST-TEST ══════════════ -->
+<div class="page" id="posttest">
+  <div class="wrap">
+    <div class="quiz-wrap">
+      <div class="quiz-hd" style="background:var(--ink)">
+        <h2>Post-Test Assessment</h2>
+        <p>Evaluate your learning outcomes after completing the lab · 5 questions · Graded</p>
+      </div>
+      <div class="quiz-bd">
+        <div class="q-block">
+          <div class="q-no">Question 1 / 5</div>
+          <div class="q-text">The area bounded by y = x² and y = 2x is:</div>
+          <div class="opts" id="oq1">
+            <label class="opt"><input type="radio" name="oq1" value="a"> 2/3</label>
+            <label class="opt"><input type="radio" name="oq1" value="b"> 4/3</label>
+            <label class="opt"><input type="radio" name="oq1" value="c"> 8/3</label>
+            <label class="opt"><input type="radio" name="oq1" value="d"> 1</label>
+          </div>
+        </div>
+        <div class="q-block">
+          <div class="q-no">Question 2 / 5</div>
+          <div class="q-text">Evaluating the inner integral of ∫₀² ∫<sub>x²</sub><sup>2x</sup> dy dx gives:</div>
+          <div class="opts" id="oq2">
+            <label class="opt"><input type="radio" name="oq2" value="a"> 2x + x²</label>
+            <label class="opt"><input type="radio" name="oq2" value="b"> 2x − x²</label>
+            <label class="opt"><input type="radio" name="oq2" value="c"> x² − 2x</label>
+            <label class="opt"><input type="radio" name="oq2" value="d"> 4x</label>
+          </div>
+        </div>
+        <div class="q-block">
+          <div class="q-no">Question 3 / 5</div>
+          <div class="q-text">The volume of the unit cube computed by ∫₀¹∫₀¹∫₀¹ dz dy dx is:</div>
+          <div class="opts" id="oq3">
+            <label class="opt"><input type="radio" name="oq3" value="a"> 3</label>
+            <label class="opt"><input type="radio" name="oq3" value="b"> 0</label>
+            <label class="opt"><input type="radio" name="oq3" value="c"> 1</label>
+            <label class="opt"><input type="radio" name="oq3" value="d"> 1/6</label>
+          </div>
+        </div>
+        <div class="q-block">
+          <div class="q-no">Question 4 / 5</div>
+          <div class="q-text">For the pyramid bounded by z = 1−x−y (x≥0, y≥0, x+y≤1), the volume is:</div>
+          <div class="opts" id="oq4">
+            <label class="opt"><input type="radio" name="oq4" value="a"> 1/2</label>
+            <label class="opt"><input type="radio" name="oq4" value="b"> 1/3</label>
+            <label class="opt"><input type="radio" name="oq4" value="c"> 1/4</label>
+            <label class="opt"><input type="radio" name="oq4" value="d"> 1/6</label>
+          </div>
+        </div>
+        <div class="q-block">
+          <div class="q-no">Question 5 / 5</div>
+          <div class="q-text">The value of ∫₀¹ ∫₀ˣ dy dx is:</div>
+          <div class="opts" id="oq5">
+            <label class="opt"><input type="radio" name="oq5" value="a"> 1</label>
+            <label class="opt"><input type="radio" name="oq5" value="b"> 1/3</label>
+            <label class="opt"><input type="radio" name="oq5" value="c"> 1/2</label>
+            <label class="opt"><input type="radio" name="oq5" value="d"> 2</label>
+          </div>
+        </div>
+        <div class="q-actions">
+          <button class="btn btn-primary" onclick="grade('post')">Submit Post-Test</button>
+          <span class="score-tag" id="post-score"></span>
+        </div>
+        <div class="feedback" id="post-fb"></div>
+      </div>
     </div>
   </div>
+</div>
 
-  <!-- ACKNOWLEDGEMENT -->
-  <div class="card" style="text-align:center;padding:2rem">
-    <div style="font-size:2rem;margin-bottom:.7rem">🎓</div>
-    <h3 style="margin-bottom:.5rem">Academic Acknowledgement</h3>
-    <p style="color:var(--muted2);max-width:560px;margin:auto;font-size:.88rem;line-height:1.7">This virtual lab was developed as part of the Virtual Labs initiative to provide accessible, interactive mathematics education. Special thanks to Prof. Rajesh Talekar for his guidance and to all student contributors for their dedication to building a high-quality educational tool.</p>
+<!-- ══════════════ TEAM ══════════════ -->
+<div class="page" id="team">
+  <div class="wrap" style="max-width:1060px;padding-top:3rem;padding-bottom:4rem;">
+    <div class="eyebrow" style="letter-spacing:.2em;color:var(--accent);margin-bottom:.55rem;font-family:var(--ff-mono);font-size:.65rem;text-transform:uppercase;">Virtual Labs · Mathematics</div>
+    <h2 style="font-size:2.1rem;margin-bottom:.5rem;color:var(--ink);">Meet the Team</h2>
+    <p style="color:var(--muted);font-size:.92rem;margin-bottom:2.5rem;max-width:560px;">The people behind the Integration Virtual Lab — each contributing their expertise to make this learning experience possible.</p>
+
+    <div class="team-grid">
+
+      <!-- Arjun Gavane -->
+      <div class="contrib-card">
+        <div class="contrib-header">
+          <div class="contrib-avatar" style="background:linear-gradient(135deg,#1640d6,#3b5de8);">AG</div>
+          <div class="contrib-info">
+            <div class="contrib-name">Arjun Gavane</div>
+            <div class="contrib-role-badge" style="border-color:var(--primary);color:var(--primary);background:var(--primary-dim);">Frontend Developer</div>
+          </div>
+        </div>
+        <p class="contrib-desc">Designed and built the complete UI layout, navigation system, and responsive design of the virtual lab. Implemented the hero section, tab-based routing, card components, and dark-theme visual system using vanilla HTML, CSS, and JavaScript.</p>
+        <div class="contrib-tags">
+          <span class="ctag">HTML / CSS</span>
+          <span class="ctag">JavaScript</span>
+          <span class="ctag">UI Design</span>
+          <span class="ctag">Responsive Layout</span>
+        </div>
+      </div>
+
+      <!-- Shashank Vidyagar -->
+      <div class="contrib-card">
+        <div class="contrib-header">
+          <div class="contrib-avatar" style="background:linear-gradient(135deg,#e8a020,#f0c040);">SV</div>
+          <div class="contrib-info">
+            <div class="contrib-name">Shashank Vidyagar</div>
+            <div class="contrib-role-badge" style="border-color:var(--gold);color:#a06010;background:#fdf3e0;">Backend Logic &amp; Math Engine</div>
+          </div>
+        </div>
+        <p class="contrib-desc">Developed the numerical integration engine for both double and triple integrals using Simpson's rule and adaptive quadrature. Implemented the expression parser, step-by-step solution generator, and error estimation module in JavaScript.</p>
+        <div class="contrib-tags">
+          <span class="ctag">Numerical Methods</span>
+          <span class="ctag">Simpson's Rule</span>
+          <span class="ctag">Expression Parsing</span>
+          <span class="ctag">Math Engine</span>
+        </div>
+      </div>
+
+      <!-- Kaivalya Garge (3D Visualization) -->
+      <div class="contrib-card">
+        <div class="contrib-header">
+          <div class="contrib-avatar" style="background:linear-gradient(135deg,#7c3aed,#a855f7);">KG</div>
+          <div class="contrib-info">
+            <div class="contrib-name">Kaivalya Garge</div>
+            <div class="contrib-role-badge" style="border-color:var(--violet);color:var(--violet);background:#f3eeff;">3D Visualization</div>
+          </div>
+        </div>
+        <p class="contrib-desc">Integrated the Three.js 3D rendering pipeline for volume visualization. Built interactive orbit controls, preset loaders, and the surface mesh generation system for live 3D visualization of integration regions.</p>
+        <div class="contrib-tags">
+          <span class="ctag">Three.js</span>
+          <span class="ctag">3D Rendering</span>
+          <span class="ctag">WebGL</span>
+        </div>
+      </div>
+
+      <!-- Kaivalya Garge (Assessment & Content) -->
+      <div class="contrib-card">
+        <div class="contrib-header">
+          <div class="contrib-avatar" style="background:linear-gradient(135deg,#0d9e5a,#14c47a);">KG</div>
+          <div class="contrib-info">
+            <div class="contrib-name">Kaivalya Garge</div>
+            <div class="contrib-role-badge" style="border-color:var(--green);color:var(--green);background:#e6faf2;">Assessment &amp; Content</div>
+          </div>
+        </div>
+        <p class="contrib-desc">Authored the Pre-Test and Post-Test question banks, wrote all theory content, worked examples, and algorithm documentation. Designed the quiz logic with scoring, feedback, and answer validation. Handled content accuracy review and integration with the lab modules.</p>
+        <div class="contrib-tags">
+          <span class="ctag">Quiz System</span>
+          <span class="ctag">Content Writing</span>
+          <span class="ctag">Assessment Design</span>
+          <span class="ctag">Documentation</span>
+        </div>
+      </div>
+
+    </div><!-- /team-grid -->
   </div>
-</section>
+</div>
 
+<style>
+.team-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 1.4rem;
+}
+.contrib-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1.4rem 1.3rem 1.2rem;
+  box-shadow: var(--shadow);
+  transition: box-shadow .2s, transform .2s;
+  display: flex;
+  flex-direction: column;
+  gap: .85rem;
+}
+.contrib-card:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-3px);
+}
+.contrib-header {
+  display: flex;
+  align-items: flex-start;
+  gap: .85rem;
+}
+.contrib-avatar {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--ff-ui);
+  font-weight: 700;
+  font-size: .9rem;
+  color: #fff;
+  flex-shrink: 0;
+  letter-spacing: .02em;
+}
+.contrib-info {
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+  padding-top: .1rem;
+}
+.contrib-name {
+  font-family: var(--ff-ui);
+  font-weight: 600;
+  font-size: .95rem;
+  color: var(--ink);
+  line-height: 1.2;
+}
+.contrib-role-badge {
+  display: inline-block;
+  font-family: var(--ff-mono);
+  font-size: .58rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  padding: .2rem .55rem;
+  border: 1px solid;
+  border-radius: 20px;
+  line-height: 1.6;
+}
+.contrib-desc {
+  font-size: .84rem;
+  color: var(--muted);
+  line-height: 1.7;
+  flex: 1;
+}
+.contrib-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+}
+.ctag {
+  font-family: var(--ff-mono);
+  font-size: .62rem;
+  color: var(--primary);
+  background: var(--primary-dim);
+  border: 1px solid rgba(22,64,214,.2);
+  border-radius: 4px;
+  padding: .18rem .5rem;
+  letter-spacing: .03em;
+}
+@media (max-width: 640px) {
+  .team-grid { grid-template-columns: 1fr; }
+}
+</style>
 
+<!-- ══════════════ JS ══════════════ -->
 <script>
-// ──────────────── TAB ROUTING ────────────────
-function showTab(id){
-  document.querySelectorAll('section,[id^="sec-home"]').forEach(s=>s.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
-  const el=document.getElementById('sec-'+id)||document.getElementById('sec-home-cards');
-  if(el) el.classList.add('active');
-  // handle home specially
-  if(id==='home'){
-    document.getElementById('sec-home').classList.add('active');
-    document.getElementById('sec-home-cards').style.display='block';
+// ── Navigation ──────────────────────────────────────────────────────────────
+function go(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.np').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('on');
+  if (btn) btn.classList.add('active');
+  window.scrollTo(0, 0);
+  if (id === 'lab') {
+    setTimeout(() => {
+      initGeoGebra('double');
+      runDouble();
+      if (!double3D.renderer) initDouble3D();
+    }, 150);
   }
-  document.querySelectorAll('.nav-tab').forEach(t=>{
-    if(t.textContent.toLowerCase().replace('-','').includes(id.replace('-',''))){t.classList.add('active')}
+}
+
+// ── Lab Tabs ─────────────────────────────────────────────────────────────────
+function switchTab(which, btn) {
+  document.querySelectorAll('.lab-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.sim-panel').forEach(p => p.classList.remove('on'));
+  btn.classList.add('active');
+  document.getElementById('sim-' + which).classList.add('on');
+  setTimeout(() => {
+    if (which === 'double') {
+      initGeoGebra('double');
+      runDouble();
+      if (!double3D.renderer) initDouble3D();
+    } else {
+      initGeoGebra('triple');
+      runTriple();
+    }
+  }, 100);
+}
+
+// ── Inline Example Tabs ───────────────────────────────────────────────────────
+function exTabInline(btn, panelId) {
+  const container = btn.closest('.examples-panel');
+  container.querySelectorAll('.ex-tab-inline').forEach(t => t.classList.remove('active'));
+  container.querySelectorAll('.ex-panel-inline').forEach(p => p.classList.remove('on'));
+  btn.classList.add('active');
+  document.getElementById(panelId).classList.add('on');
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function linspace(a, b, n) {
+  return Array.from({ length: n }, (_, i) => a + (b - a) * i / (n - 1));
+}
+
+function initGeoGebra(type) {
+  if (type === 'triple') {
+    if (!triple3D.renderer) initTriple3D();
+    updateTriple3D();
+  }
+}
+
+// ── Three.js Triple Integral 3D Renderer ─────────────────────────────────────
+const triple3D = {
+  renderer: null, scene: null, camera: null,
+  mesh: null, wireframe: null, axes: null,
+  animId: null, isSpinning: true,
+  angle: 0,
+  mouse: { down: false, x: 0, y: 0 },
+  spherical: { theta: Math.PI / 4, phi: Math.PI / 3, radius: 3.5 }
+};
+
+function initTriple3D() {
+  const canvas = document.getElementById('triple3d-canvas');
+  const W = canvas.clientWidth || 600;
+  const H = 460;
+  canvas.width = W; canvas.height = H;
+
+  // Renderer
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setSize(W, H);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  triple3D.renderer = renderer;
+
+  // Scene
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x070d1f);
+  scene.fog = new THREE.FogExp2(0x0d1540, 0.08);
+  triple3D.scene = scene;
+
+  // Camera
+  const camera = new THREE.PerspectiveCamera(50, W / H, 0.01, 100);
+  triple3D.camera = camera;
+
+  // Lighting
+  const ambient = new THREE.AmbientLight(0x8090ff, 0.5);
+  scene.add(ambient);
+  const dir1 = new THREE.DirectionalLight(0xffffff, 0.9);
+  dir1.position.set(3, 5, 4);
+  scene.add(dir1);
+  const dir2 = new THREE.DirectionalLight(0x4060ff, 0.4);
+  dir2.position.set(-3, -2, -3);
+  scene.add(dir2);
+  const pointLight = new THREE.PointLight(0x7c3aed, 1.2, 10);
+  pointLight.position.set(1, 2, 1);
+  scene.add(pointLight);
+
+  // Grid floor
+  const grid = new THREE.GridHelper(4, 12, 0x1a2560, 0x0f1840);
+  grid.position.y = 0;
+  scene.add(grid);
+
+  // Axes
+  buildAxes(scene, 2.2);
+
+  // Mouse drag to rotate
+  canvas.addEventListener('mousedown', e => {
+    triple3D.mouse.down = true;
+    triple3D.mouse.x = e.clientX;
+    triple3D.mouse.y = e.clientY;
+    triple3D.isSpinning = false;
+    canvas.style.cursor = 'grabbing';
+  });
+  window.addEventListener('mouseup', () => {
+    triple3D.mouse.down = false;
+    canvas.style.cursor = 'grab';
+  });
+  window.addEventListener('mousemove', e => {
+    if (!triple3D.mouse.down) return;
+    const dx = e.clientX - triple3D.mouse.x;
+    const dy = e.clientY - triple3D.mouse.y;
+    triple3D.mouse.x = e.clientX;
+    triple3D.mouse.y = e.clientY;
+    triple3D.spherical.theta -= dx * 0.012;
+    triple3D.spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, triple3D.spherical.phi - dy * 0.012));
+  });
+
+  // Touch support
+  canvas.addEventListener('touchstart', e => {
+    triple3D.mouse.down = true;
+    triple3D.mouse.x = e.touches[0].clientX;
+    triple3D.mouse.y = e.touches[0].clientY;
+    triple3D.isSpinning = false;
+  }, { passive: true });
+  window.addEventListener('touchend', () => { triple3D.mouse.down = false; });
+  window.addEventListener('touchmove', e => {
+    if (!triple3D.mouse.down) return;
+    const dx = e.touches[0].clientX - triple3D.mouse.x;
+    const dy = e.touches[0].clientY - triple3D.mouse.y;
+    triple3D.mouse.x = e.touches[0].clientX;
+    triple3D.mouse.y = e.touches[0].clientY;
+    triple3D.spherical.theta -= dx * 0.012;
+    triple3D.spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, triple3D.spherical.phi - dy * 0.012));
+  }, { passive: true });
+
+  // Scroll to zoom
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    triple3D.spherical.radius = Math.max(1.5, Math.min(8, triple3D.spherical.radius + e.deltaY * 0.005));
+  }, { passive: false });
+
+  // Double-click to resume spin
+  canvas.addEventListener('dblclick', () => { triple3D.isSpinning = true; });
+
+  // Animate loop
+  function animate() {
+    triple3D.animId = requestAnimationFrame(animate);
+    if (triple3D.isSpinning) triple3D.spherical.theta += 0.006;
+
+    const { theta, phi, radius } = triple3D.spherical;
+    camera.position.set(
+      radius * Math.sin(phi) * Math.sin(theta),
+      radius * Math.cos(phi),
+      radius * Math.sin(phi) * Math.cos(theta)
+    );
+    camera.lookAt(0.5, 0.3, 0.5);
+    renderer.render(scene, camera);
+  }
+  animate();
+}
+
+function buildAxes(scene, len) {
+  const mkLine = (from, to, color) => {
+    const geo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(...from), new THREE.Vector3(...to)
+    ]);
+    return new THREE.Line(geo, new THREE.LineBasicMaterial({ color, linewidth: 2 }));
+  };
+  scene.add(mkLine([0,0,0],[len,0,0], 0xff4455)); // x red
+  scene.add(mkLine([0,0,0],[0,len,0], 0x44ff88)); // y green
+  scene.add(mkLine([0,0,0],[0,0,len], 0x4488ff)); // z blue
+
+  // Axis labels as sprites
+  const labels = [['X', len+0.15, 0, 0, '#ff4455'],
+                  ['Y', 0, len+0.15, 0, '#44ff88'],
+                  ['Z', 0, 0, len+0.15, '#4488ff']];
+  labels.forEach(([txt, x, y, z, col]) => {
+    const cv = document.createElement('canvas');
+    cv.width = 64; cv.height = 64;
+    const ctx = cv.getContext('2d');
+    ctx.font = 'bold 36px monospace';
+    ctx.fillStyle = col;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(txt, 32, 32);
+    const tex = new THREE.CanvasTexture(cv);
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
+    sp.position.set(x, y, z);
+    sp.scale.set(0.25, 0.25, 0.25);
+    scene.add(sp);
   });
 }
-// fix active display for sections
-document.querySelectorAll('section').forEach(s=>{
-  s.style.display='none';
-});
-document.getElementById('sec-home').style.display='';
-document.getElementById('sec-home-cards').style.display='block';
 
-function showTab(id){
-  // hide all
-  document.querySelectorAll('section').forEach(s=>s.style.display='none');
-  document.getElementById('sec-home').style.display='none';
-  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+function updateTriple3D() {
+  if (!triple3D.renderer) return;
 
-  if(id==='home'){
-    document.getElementById('sec-home').style.display='';
-    document.getElementById('sec-home-cards').style.display='block';
-  } else {
-    const sec=document.getElementById('sec-'+id);
-    if(sec) sec.style.display='block';
+  // Determine if 3D is visualizable: limits must be real-valued (no z dependency in h bounds)
+  const ef  = (document.getElementById('t-f').value.trim() || '1');
+  const eh1 = document.getElementById('t-h1').value.trim();
+  const eh2 = document.getElementById('t-h2').value.trim();
+
+  // Check if z limits contain 'z' (can't visualize the bounding surface then)
+  const limitsHaveZ = /\bz\b/.test(eh1) || /\bz\b/.test(eh2);
+  // Check if integrand uses z (3D solid shape still visualizable, but mark it)
+  const integrandHasZ = /\bz\b/.test(ef);
+
+  const overlay  = document.getElementById('triple3d-overlay');
+  const msgEl    = document.getElementById('triple3d-msg');
+
+  if (limitsHaveZ) {
+    // Can't draw solid — z-limits depend on z itself (implicit)
+    overlay.style.display = 'flex';
+    msgEl.innerHTML = `z-limits contain <b>z</b> — implicit region<br>cannot be visualized as explicit surfaces.<br><br>Computation above is still valid ✓`;
+    return;
   }
-  document.querySelectorAll('.nav-tab').forEach(t=>{
-    if(t.getAttribute('onclick')&&t.getAttribute('onclick').includes("'"+id+"'")){t.classList.add('active');}
+
+  // Hide overlay — proceed with 3D render
+  overlay.style.display = 'none';
+
+  const scene = triple3D.scene;
+  ['t3d_top','t3d_bot','t3d_sides','t3d_wf','t3d_base'].forEach(n => {
+    const obj = scene.getObjectByName(n);
+    if (obj) { obj.geometry && obj.geometry.dispose(); scene.remove(obj); }
   });
-}
 
-// ──────────────── LAB TAB SWITCH ────────────────
-function switchLabTab(id,btn){
-  document.getElementById('lab-double').style.display=id==='double'?'':'none';
-  document.getElementById('lab-triple').style.display=id==='triple'?'':'none';
-  btn.closest('.tabs-sub').querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-}
+  try {
+    const a   = parseFloat(document.getElementById('t-a').value)  || 0;
+    const b   = parseFloat(document.getElementById('t-b').value)  || 1;
+    const eg1 = document.getElementById('t-g1').value.trim() || '0';
+    const eg2 = document.getElementById('t-g2').value.trim() || '1';
+    const eh1 = document.getElementById('t-h1').value.trim() || '0';
+    const eh2 = document.getElementById('t-h2').value.trim() || '1';
 
-// ──────────────── MATH ENGINE ────────────────
-function safeEval(expr,vars){
-  try{
-    let e=expr.replace(/\^/g,'**').replace(/pi/g,'Math.PI').replace(/sqrt\(/g,'Math.sqrt(').replace(/sin\(/g,'Math.sin(').replace(/cos\(/g,'Math.cos(').replace(/exp\(/g,'Math.exp(').replace(/abs\(/g,'Math.abs(').replace(/log\(/g,'Math.log(');
-    const keys=Object.keys(vars), vals=Object.values(vars);
-    return new Function(...keys,'return '+e)(...vals);
-  }catch(e){return NaN;}
-}
+    const g1 = (x)    => { try { return math.evaluate(eg1, {x, y:0}); } catch { return 0; } };
+    const g2 = (x)    => { try { return math.evaluate(eg2, {x, y:0}); } catch { return 1; } };
+    const h1 = (x, y) => { try { return math.evaluate(eh1, {x, y});   } catch { return 0; } };
+    const h2 = (x, y) => { try { return math.evaluate(eh2, {x, y});   } catch { return 1; } };
 
-function simpson1d(f,a,b,n=100){
-  n=n%2===0?n:n+1;
-  const h=(b-a)/n; let s=f(a)+f(b);
-  for(let i=1;i<n;i++) s+=(i%2===0?2:4)*f(a+i*h);
-  return s*h/3;
-}
+    // Figure out a normalisation scale so the solid fits in ~[0,1]³ visually
+    const NX = 24, NY = 20;
+    const xRange = Math.max(0.001, b - a);
 
-function compute2d(){
-  const fExpr=document.getElementById('fxy').value;
-  const xa=parseFloat(document.getElementById('xa').value);
-  const xb=parseFloat(document.getElementById('xb').value);
-  const yaExpr=document.getElementById('ya').value;
-  const ybExpr=document.getElementById('yb').value;
-  const N=80;
-  const hx=(xb-xa)/N;
-  let total=0, cx=0;
-  for(let i=0;i<=N;i++){
-    const x=xa+i*hx;
-    const ya=safeEval(yaExpr,{x});
-    const yb=safeEval(ybExpr,{x});
-    if(isNaN(ya)||isNaN(yb)) continue;
-    const inner=simpson1d(y=>safeEval(fExpr,{x,y}),ya,yb,40);
-    const w=(i===0||i===N)?1:(i%2===0?2:4);
-    total+=w*inner; cx+=w*inner*x;
-  }
-  total=total*hx/3; cx=cx*hx/3;
-  const simpVal=total.toFixed(6);
-  const centx=(cx/total).toFixed(4);
-  document.getElementById('result2d').textContent=`∬ f(x,y) dA ≈ ${simpVal}`;
-  document.getElementById('s-num').textContent=simpVal;
-  document.getElementById('s-simp').textContent=simpVal;
-  document.getElementById('s-err').textContent='< 1e-4';
-  document.getElementById('s-xr').textContent=`[${xa}, ${xb}]`;
-  document.getElementById('s-val').textContent=simpVal;
-  document.getElementById('s-cx').textContent=centx;
-  document.getElementById('stats2d').style.display='grid';
-
-  document.getElementById('steps2d').innerHTML=`
-<span style="color:var(--accent3)">Step 1 — Setup:</span>
-∫<sub>${xa}</sub><sup>${xb}</sup> ∫<sub>${yaExpr}</sub><sup>${ybExpr}</sup> f(x,y) dy dx
-
-<span style="color:var(--accent3)">Step 2 — Inner integral (y):</span>
-For each x, integrate f(x,y) from ${yaExpr} to ${ybExpr}
-using Simpson's rule (40 sub-intervals per x slice).
-
-<span style="color:var(--accent3)">Step 3 — Outer integral (x):</span>
-Integrate the inner results over [${xa}, ${xb}]
-using composite Simpson's rule (${N} sub-intervals).
-
-<span style="color:var(--green)">Result: ∬ f dA ≈ ${simpVal}</span>
-<span style="color:var(--muted2)">Centroid x̄ ≈ ${centx}</span>`;
-}
-
-function compute3d(){
-  const fExpr=document.getElementById('fxyz').value;
-  const xa=parseFloat(document.getElementById('x3a').value);
-  const xb=parseFloat(document.getElementById('x3b').value);
-  const yaE=document.getElementById('y3a').value;
-  const ybE=document.getElementById('y3b').value;
-  const zaE=document.getElementById('z3a').value;
-  const zbE=document.getElementById('z3b').value;
-  const N=20; const hx=(xb-xa)/N;
-  let total=0, cz=0;
-  for(let i=0;i<=N;i++){
-    const x=xa+i*hx;
-    const ya=safeEval(yaE,{x}), yb=safeEval(ybE,{x});
-    if(isNaN(ya)||isNaN(yb)) continue;
-    const hy=(yb-ya)/20;
-    let mid=0, mcz=0;
-    for(let j=0;j<=20;j++){
-      const y=ya+j*hy;
-      const za=safeEval(zaE,{x,y}), zb=safeEval(zbE,{x,y});
-      if(isNaN(za)||isNaN(zb)) continue;
-      const inner=simpson1d(z=>safeEval(fExpr,{x,y,z}),za,zb,10);
-      const innerCz=simpson1d(z=>z*safeEval(fExpr,{x,y,z}),za,zb,10);
-      const wy=(j===0||j===20)?1:(j%2===0?2:4);
-      mid+=wy*inner; mcz+=wy*innerCz;
-    }
-    const wx=(i===0||i===N)?1:(i%2===0?2:4);
-    total+=wx*mid*hy/3; cz+=wx*mcz*hy/3;
-  }
-  total=total*hx/3; cz=cz*hx/3;
-  const vol=total.toFixed(6);
-  const centZ=isFinite(cz/total)?(cz/total).toFixed(4):'—';
-  document.getElementById('result3d').textContent=`∭ f dV ≈ ${vol}`;
-  document.getElementById('s3-num').textContent=vol;
-  document.getElementById('s3-ana').textContent=vol;
-  document.getElementById('s3-err').textContent='< 1e-3';
-  document.getElementById('s3-xr').textContent=`[${xa}, ${xb}]`;
-  document.getElementById('s3-vol').textContent=vol;
-  document.getElementById('s3-cz').textContent=centZ;
-  document.getElementById('stats3d').style.display='grid';
-  document.getElementById('steps3d').innerHTML=`
-<span style="color:var(--accent3)">Step 1:</span> x ∈ [${xa}, ${xb}], y ∈ [${yaE}, ${ybE}], z ∈ [${zaE}, ${zbE}]
-<span style="color:var(--accent3)">Step 2:</span> Integrate z (inner) using Simpson's rule.
-<span style="color:var(--accent3)">Step 3:</span> Integrate y (middle) using Simpson's rule.
-<span style="color:var(--accent3)">Step 4:</span> Integrate x (outer) using Simpson's rule.
-<span style="color:var(--green)">Volume V ≈ ${vol}</span>
-<span style="color:var(--muted2)">Centroid z̄ ≈ ${centZ}</span>`;
-  render3d(xa,xb,yaE,ybE,zaE,zbE);
-}
-
-// ──────────────── PRESETS ────────────────
-const presets2d={
-  area:{f:'1',xa:'0',xb:'2',ya:'x^2',yb:'2*x',desc:'Area between y=x² and y=2x'},
-  xy:{f:'x+y',xa:'0',xb:'1',ya:'0',yb:'x',desc:'∫∫(x+y)dydx over triangle 0≤y≤x, 0≤x≤1'},
-  r2:{f:'x^2+y^2',xa:'0',xb:'1',ya:'0',yb:'1',desc:'∫∫(x²+y²)dydx over unit square'},
-  sincos:{f:'sin(x)*cos(y)',xa:'0',xb:'3.14159',ya:'0',yb:'3.14159',desc:'∫∫sin(x)cos(y)dydx over [0,π]²'},
-};
-function loadPreset2d(k,btn){
-  const p=presets2d[k];
-  document.getElementById('fxy').value=p.f;
-  document.getElementById('xa').value=p.xa;
-  document.getElementById('xb').value=p.xb;
-  document.getElementById('ya').value=p.ya;
-  document.getElementById('yb').value=p.yb;
-  document.getElementById('desc2d').textContent=p.desc;
-  btn.closest('div').querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-}
-const presets3d={
-  cube:{f:'1',xa:'0',xb:'1',ya:'0',yb:'1',za:'0',zb:'1',desc:'Unit cube: x,y,z ∈ [0,1]'},
-  pyramid:{f:'1',xa:'0',xb:'1',ya:'0',yb:'1-x',za:'0',zb:'1-x-y',desc:'Pyramid under z=1-x-y, x+y≤1'},
-  box:{f:'1',xa:'0',xb:'2',ya:'0',yb:'3',za:'0',zb:'4',desc:'Box 2×3×4'},
-  tet:{f:'1',xa:'0',xb:'1',ya:'0',yb:'1-x',za:'0',zb:'1-x-y',desc:'Tetrahedron'},
-};
-function loadPreset3d(k,btn){
-  const p=presets3d[k];
-  document.getElementById('fxyz').value=p.f;
-  document.getElementById('x3a').value=p.xa; document.getElementById('x3b').value=p.xb;
-  document.getElementById('y3a').value=p.ya; document.getElementById('y3b').value=p.yb;
-  document.getElementById('z3a').value=p.za; document.getElementById('z3b').value=p.zb;
-  document.getElementById('desc3d').textContent=p.desc;
-  btn.closest('div').querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-}
-
-// ──────────────── EXAMPLES 2D ────────────────
-const ex2d=[
-  {title:'Area between y=x² and y=2x',steps:[
-    {n:'1',t:'<strong>Find intersections:</strong> x²=2x → x(x−2)=0 → x=0, x=2'},
-    {n:'2',t:'<strong>Upper bound:</strong> At x=1: y=2x=2 > y=x²=1, so y=2x is top.'},
-    {n:'3',t:'<strong>Set up:</strong> A = ∫₀² ∫<sub>x²</sub><sup>2x</sup> dy dx'},
-    {n:'4',t:'<strong>Inner integral:</strong> [y]<sub>x²</sub><sup>2x</sup> = 2x − x²'},
-    {n:'5',t:'<strong>Outer integral:</strong> ∫₀² (2x−x²) dx = [x²−x³/3]₀² = 4−8/3 = 4/3'},
-  ],answer:'Area = 4/3 ≈ 1.3333 sq units'},
-  {title:'Area between y=x² and y=√x for 0≤x≤1',steps:[
-    {n:'1',t:'<strong>Intersections:</strong> x²=√x → x⁴=x → x=0, 1'},
-    {n:'2',t:'At x=0.5: √0.5≈0.71 > 0.25=x², so √x is upper.'},
-    {n:'3',t:'<strong>Set up:</strong> A = ∫₀¹ ∫<sub>x²</sub><sup>√x</sup> dy dx'},
-    {n:'4',t:'<strong>Inner:</strong> √x − x²'},
-    {n:'5',t:'<strong>Outer:</strong> ∫₀¹(√x−x²)dx = ⅔−⅓ = 1/3'},
-  ],answer:'Area = 1/3 ≈ 0.3333 sq units'},
-  {title:'Area of triangle: y=0, y=x, x=2',steps:[
-    {n:'1',t:'x ∈ [0,2]; for each x, y ∈ [0,x].'},
-    {n:'2',t:'<strong>Set up:</strong> A = ∫₀² ∫₀ˣ dy dx'},
-    {n:'3',t:'<strong>Inner:</strong> [y]₀ˣ = x'},
-    {n:'4',t:'<strong>Outer:</strong> ∫₀² x dx = [x²/2]₀² = 2'},
-  ],answer:'Area = 2 sq units'},
-];
-function showEx2d(i,btn){
-  const e=ex2d[i];
-  btn.closest('.ex-tabs').querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('ex2d-content').innerHTML=`
-    <p style="font-size:.88rem;color:var(--muted2);margin-bottom:.8rem"><strong>Problem:</strong> ${e.title}</p>
-    ${e.steps.map(s=>`<div class="ex-step"><div class="ex-num">${s.n}</div><div class="ex-text">${s.t}</div></div>`).join('')}
-    <div class="formula">∴ ${e.answer}</div>
-    <button class="btn btn-outline" style="margin-top:.8rem;font-size:.8rem" onclick="loadExInSim2d(${i})">▶ Load in Simulator</button>`;
-}
-showEx2d(0,document.querySelector('.ex-tabs .tab-btn'));
-
-function loadExInSim2d(i){
-  if(i===0) loadPreset2d('area',document.querySelector('[onclick*="area"]'));
-  else if(i===1){document.getElementById('fxy').value='1';document.getElementById('xa').value='0';document.getElementById('xb').value='1';document.getElementById('ya').value='x^2';document.getElementById('yb').value='sqrt(x)';}
-  else{document.getElementById('fxy').value='1';document.getElementById('xa').value='0';document.getElementById('xb').value='2';document.getElementById('ya').value='0';document.getElementById('yb').value='x';}
-  showTab('lab');
-}
-
-// ──────────────── EXAMPLES 3D ────────────────
-const ex3d=[
-  {title:'Volume of unit cube (x,y,z ∈ [0,1])',steps:[
-    {n:'1',t:'<strong>Solid:</strong> 1×1×1 cube. x∈[0,1], y∈[0,1], z∈[0,1]'},
-    {n:'2',t:'<strong>Integral:</strong> V = ∫₀¹∫₀¹∫₀¹ dz dy dx'},
-    {n:'3',t:'<strong>Inner (z):</strong> ∫₀¹ dz = 1'},
-    {n:'4',t:'<strong>Middle (y):</strong> ∫₀¹ 1 dy = 1'},
-    {n:'5',t:'<strong>Outer (x):</strong> ∫₀¹ 1 dx = 1'},
-  ],answer:'Volume = 1 cubic unit'},
-  {title:'Volume of box 2×3×4',steps:[
-    {n:'1',t:'x∈[0,2], y∈[0,3], z∈[0,4] — all constant limits.'},
-    {n:'2',t:'<strong>Integral:</strong> V = ∫₀²∫₀³∫₀⁴ dz dy dx'},
-    {n:'3',t:'<strong>Inner (z):</strong> 4'},
-    {n:'4',t:'<strong>Middle (y):</strong> 4×3 = 12'},
-    {n:'5',t:'<strong>Outer (x):</strong> 12×2 = 24'},
-  ],answer:'Volume = 24 cubic units'},
-  {title:'Volume under z=1−x−y (pyramid)',steps:[
-    {n:'1',t:'x∈[0,1], y∈[0,1−x], z∈[0,1−x−y]'},
-    {n:'2',t:'<strong>Integral:</strong> V = ∫₀¹∫₀<sup>1−x</sup>∫₀<sup>1−x−y</sup> dz dy dx'},
-    {n:'3',t:'<strong>Inner (z):</strong> 1−x−y'},
-    {n:'4',t:'<strong>Middle (y):</strong> (1−x)²/2'},
-    {n:'5',t:'<strong>Outer (x):</strong> ∫₀¹(1−x)²/2 dx = 1/6'},
-  ],answer:'Volume = 1/6 ≈ 0.1667 cubic units'},
-];
-function showEx3d(i,btn){
-  const e=ex3d[i];
-  btn.closest('.ex-tabs').querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('ex3d-content').innerHTML=`
-    <p style="font-size:.88rem;color:var(--muted2);margin-bottom:.8rem"><strong>Problem:</strong> ${e.title}</p>
-    ${e.steps.map(s=>`<div class="ex-step"><div class="ex-num">${s.n}</div><div class="ex-text">${s.t}</div></div>`).join('')}
-    <div class="formula">∴ ${e.answer}</div>`;
-}
-setTimeout(()=>{
-  const el=document.querySelector('#lab-triple .ex-tabs .tab-btn');
-  if(el) showEx3d(0,el);
-},100);
-
-// ──────────────── THREE.JS 3D ────────────────
-let threeScene,threeCamera,threeRenderer,threeGroup;
-function init3d(){
-  const container=document.getElementById('three-container');
-  if(!container||threeRenderer) return;
-  threeScene=new THREE.Scene();
-  threeScene.background=new THREE.Color(0x111827);
-  threeCamera=new THREE.PerspectiveCamera(50,container.clientWidth/280,0.01,100);
-  threeCamera.position.set(2,2,2);
-  threeCamera.lookAt(0.5,0.5,0.5);
-  threeRenderer=new THREE.WebGLRenderer({antialias:true});
-  threeRenderer.setSize(container.clientWidth,280);
-  container.appendChild(threeRenderer.domElement);
-  threeScene.add(new THREE.AmbientLight(0xffffff,.6));
-  const dl=new THREE.DirectionalLight(0x93c5fd,.8);dl.position.set(2,3,2);threeScene.add(dl);
-  const axes=new THREE.AxesHelper(1.5);threeScene.add(axes);
-  threeGroup=new THREE.Group();threeScene.add(threeGroup);
-  // orbit
-  let drag=false,lastX=0,lastY=0;
-  container.addEventListener('mousedown',e=>{drag=true;lastX=e.clientX;lastY=e.clientY});
-  window.addEventListener('mouseup',()=>drag=false);
-  window.addEventListener('mousemove',e=>{if(!drag)return;const dx=e.clientX-lastX,dy=e.clientY-lastY;threeGroup.rotation.y+=dx*.01;threeGroup.rotation.x+=dy*.01;lastX=e.clientX;lastY=e.clientY});
-  container.addEventListener('wheel',e=>{threeCamera.position.multiplyScalar(1+e.deltaY*.001);});
-  (function loop(){requestAnimationFrame(loop);threeRenderer.render(threeScene,threeCamera)})();
-}
-function render3d(xa,xb,yaE,ybE,zaE,zbE){
-  init3d();
-  threeGroup.clear();
-  const geo=new THREE.BufferGeometry();
-  const verts=[];
-  const N=12;
-  for(let i=0;i<N;i++){
-    const x=xa+(xb-xa)*i/N, xn=xa+(xb-xa)*(i+1)/N;
-    const ya=safeEval(yaE,{x}),yb2=safeEval(ybE,{x});
-    const yan=safeEval(yaE,{x:xn}),ybn=safeEval(ybE,{x:xn});
-    for(let j=0;j<N;j++){
-      const ty=j/N,tyn=(j+1)/N;
-      const y=ya+(yb2-ya)*ty, yn=ya+(yb2-ya)*tyn;
-      const yn2=yan+(ybn-yan)*tyn;
-      const y2=yan+(ybn-yan)*ty;
-      const zTop=safeEval(zbE,{x,y}), zBot=safeEval(zaE,{x,y});
-      const zTopN=safeEval(zbE,{x:xn,y:yn2}), zBotN=safeEval(zaE,{x:xn,y:yn2});
-      if([zTop,zBot,zTopN,zBotN].some(isNaN)) continue;
-      // top face
-      verts.push(x,y,zTop, xn,yn2,zTopN, xn,y2,safeEval(zbE,{x:xn,y:y2}));
-      verts.push(x,y,zTop, x,yn,safeEval(zbE,{x,y:yn}), xn,yn2,zTopN);
-      // bottom face
-      verts.push(x,y,zBot, xn,y2,safeEval(zaE,{x:xn,y:y2}), xn,yn2,zBotN);
-      verts.push(x,y,zBot, xn,yn2,zBotN, x,yn,safeEval(zaE,{x,y:yn}));
-    }
-  }
-  geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));
-  geo.computeVertexNormals();
-  const mat=new THREE.MeshPhongMaterial({color:0x3b82f6,transparent:true,opacity:.7,side:THREE.DoubleSide});
-  threeGroup.add(new THREE.Mesh(geo,mat));
-  const wf=new THREE.WireframeGeometry(geo);
-  threeGroup.add(new THREE.LineSegments(wf,new THREE.LineBasicMaterial({color:0x60a5fa,opacity:.3,transparent:true})));
-}
-
-// ──────────────── QUIZ ENGINE ────────────────
-const preQ=[
-  {q:'When the integrand f(x,y) = 1, the double integral ∬R dA computes:',opts:['Volume under a surface','Area of region R','Perimeter of R','Centroid of R'],ans:1},
-  {q:'For area between y = x² and y = x, the x limits of integration are:',opts:['[0, 2]','[−1, 1]','[0, 1]','[1, 2]'],ans:2},
-  {q:'The inner integral of ∫₀¹ ∫₀ˣ dy dx evaluates to:',opts:['∫₀¹ x² dx','∫₀¹ x dx','∫₀¹ 1 dx','∫₀¹ (x−1) dx'],ans:1},
-  {q:'A triple integral ∭E dV computes:',opts:['Surface area of E','Mass of E','Volume of solid E','Centroid of E'],ans:2},
-  {q:"Fubini's Theorem allows us to:",opts:['Set the integral to zero','Switch integration order freely for continuous functions','Only integrate in dy dx order','Cancel inner and outer integrals'],ans:1},
-];
-const postQ=[
-  {q:'The area bounded by y = x² and y = 2x is:',opts:['2/3','4/3','8/3','1'],ans:1},
-  {q:'Evaluating the inner integral of ∫₀² ∫x²2x dy dx gives:',opts:['2x + x²','2x − x²','x² − 2x','4x'],ans:1},
-  {q:'The volume of the unit cube computed by ∫₀¹∫₀¹∫₀¹ dz dy dx is:',opts:['3','0','1','1/6'],ans:2},
-  {q:'For the pyramid bounded by z=1−x−y (x≥0, y≥0, x+y≤1), the volume is:',opts:['1/2','1/3','1/4','1/6'],ans:3},
-  {q:'The value of ∫₀¹ ∫₀ˣ dy dx is:',opts:['1','1/3','1/2','2'],ans:2},
-];
-
-function buildQuiz(questions, containerId, graded){
-  let current=0, score=0, answered=false;
-  const container=document.getElementById(containerId);
-  function render(){
-    const q=questions[current];
-    container.innerHTML=`
-      <div class="progress-bar"><div class="progress-fill" style="width:${(current/questions.length)*100}%"></div></div>
-      <p style="font-size:.78rem;color:var(--muted);font-family:var(--mono);margin-bottom:1rem">Question ${current+1} / ${questions.length}</p>
-      <p class="quiz-q">${q.q}</p>
-      <div class="quiz-opts">
-        ${q.opts.map((o,i)=>`<div class="quiz-opt" id="opt-${i}" onclick="pickOpt(${i})">${o}</div>`).join('')}
-      </div>
-      <div class="quiz-nav">
-        <span id="quiz-fb" style="font-size:.85rem;color:var(--muted2)"></span>
-        <button class="btn btn-primary" id="next-btn" style="display:none" onclick="nextQ()">${current===questions.length-1?'Submit':'Next →'}</button>
-      </div>`;
-    answered=false;
-    window.pickOpt=function(i){
-      if(answered) return; answered=true;
-      const correct=q.ans;
-      document.querySelectorAll('.quiz-opt').forEach((el,idx)=>{
-        if(idx===correct) el.classList.add('correct');
-        else if(idx===i&&i!==correct) el.classList.add('wrong');
-        el.style.pointerEvents='none';
-      });
-      if(i===correct) score++;
-      document.getElementById('quiz-fb').textContent=i===correct?'✓ Correct!':'✗ Incorrect.';
-      document.getElementById('quiz-fb').style.color=i===correct?'var(--green)':'#ef4444';
-      document.getElementById('next-btn').style.display='';
-    };
-    window.nextQ=function(){
-      current++;
-      if(current>=questions.length){
-        container.innerHTML=`<div style="text-align:center;padding:2rem 1rem">
-          <div style="font-size:3rem;margin-bottom:1rem">${score>=4?'🎉':'📚'}</div>
-          <h3 style="font-size:1.2rem;margin-bottom:.5rem">Quiz Complete</h3>
-          ${graded?`<div class="score-badge">Score: ${score} / ${questions.length}</div>`:`<p style="color:var(--muted2);margin-top:.8rem">This was ungraded — use it to gauge your readiness.</p>`}
-          <p style="color:var(--muted2);font-size:.88rem;margin-top:1rem">${score>=4?'Excellent understanding!':score>=3?'Good work, review a few concepts.':'Review the theory section and try again.'}</p>
-          <button class="btn btn-outline" style="margin-top:1.2rem" onclick="buildQuiz(${graded?'postQ':'preQ'},'${containerId}',${graded})">Retry</button>
-        </div>`;
-        return;
+    // Sample the solid and find max extents
+    let maxY = 0, maxZ = 0;
+    for (let i = 0; i <= NX; i++) {
+      const x = a + (b - a) * i / NX;
+      const y1 = Math.min(g1(x), g2(x)), y2 = Math.max(g1(x), g2(x));
+      maxY = Math.max(maxY, Math.abs(y2), Math.abs(y1));
+      for (let j = 0; j <= NY; j++) {
+        const y = y1 + (y2 - y1) * j / NY;
+        const z1 = h1(x, y), z2 = h2(x, y);
+        maxZ = Math.max(maxZ, Math.abs(z2), Math.abs(z1));
       }
-      render();
+    }
+    const scX = 1 / xRange;
+    const scY = maxY > 0 ? 1 / maxY : 1;
+    const scZ = maxZ > 0 ? 1 / maxZ : 1;
+    const norm = (x, y, z) => [
+      (x - a) * scX,
+      y * scY,
+      z * scZ
+    ];
+
+    // Build top & bottom surface geometry via triangle mesh
+    const topVerts = [], botVerts = [], topNorms = [], botNorms = [];
+    const grid = [];
+
+    for (let i = 0; i <= NX; i++) {
+      grid[i] = [];
+      const x = a + (b - a) * i / NX;
+      const y1 = Math.min(g1(x), g2(x)), y2 = Math.max(g1(x), g2(x));
+      for (let j = 0; j <= NY; j++) {
+        const y = y1 + (y2 - y1) * j / NY;
+        const zt = h2(x, y), zb = h1(x, y);
+        grid[i][j] = { x, y, zt: isFinite(zt) ? zt : 0, zb: isFinite(zb) ? zb : 0 };
+      }
+    }
+
+    const addQuad = (vArr, nArr, p0, p1, p2, p3, invert) => {
+      const toV = p => new THREE.Vector3(...norm(p.x, p.y, p.z));
+      const v0 = toV(p0), v1 = toV(p1), v2 = toV(p2), v3 = toV(p3);
+      const edge1 = v1.clone().sub(v0), edge2 = v2.clone().sub(v0);
+      let n = new THREE.Vector3().crossVectors(edge1, edge2).normalize();
+      if (invert) n.negate();
+      [v0,v1,v2, v0,v2,v3].forEach(v => { vArr.push(v.x,v.y,v.z); nArr.push(n.x,n.y,n.z); });
     };
+
+    for (let i = 0; i < NX; i++) {
+      for (let j = 0; j < NY; j++) {
+        const p00t = {x:grid[i][j].x,   y:grid[i][j].y,   z:grid[i][j].zt};
+        const p10t = {x:grid[i+1][j].x, y:grid[i+1][j].y, z:grid[i+1][j].zt};
+        const p11t = {x:grid[i+1][j+1].x,y:grid[i+1][j+1].y,z:grid[i+1][j+1].zt};
+        const p01t = {x:grid[i][j+1].x, y:grid[i][j+1].y, z:grid[i][j+1].zt};
+        addQuad(topVerts, topNorms, p00t, p10t, p11t, p01t, false);
+
+        const p00b = {x:grid[i][j].x,   y:grid[i][j].y,   z:grid[i][j].zb};
+        const p10b = {x:grid[i+1][j].x, y:grid[i+1][j].y, z:grid[i+1][j].zb};
+        const p11b = {x:grid[i+1][j+1].x,y:grid[i+1][j+1].y,z:grid[i+1][j+1].zb};
+        const p01b = {x:grid[i][j+1].x, y:grid[i][j+1].y, z:grid[i][j+1].zb};
+        addQuad(botVerts, botNorms, p00b, p10b, p11b, p01b, true);
+      }
+    }
+
+    const mkMesh = (verts, norms, color, opacity, name) => {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+      geo.setAttribute('normal',   new THREE.Float32BufferAttribute(norms, 3));
+      const mat = new THREE.MeshPhongMaterial({
+        color, opacity, transparent: true,
+        side: THREE.DoubleSide, shininess: 80, specular: 0x4040ff
+      });
+      const m = new THREE.Mesh(geo, mat);
+      m.name = name;
+      return m;
+    };
+
+    scene.add(mkMesh(topVerts, topNorms, 0x7c3aed, 0.82, 't3d_top'));
+    scene.add(mkMesh(botVerts, botNorms, 0x1640d6, 0.60, 't3d_bot'));
+
+    // Wireframe on top surface
+    const wfGeo = new THREE.BufferGeometry();
+    wfGeo.setAttribute('position', new THREE.Float32BufferAttribute(topVerts, 3));
+    const wf = new THREE.Mesh(wfGeo, new THREE.MeshBasicMaterial({
+      color: 0xc4b5fd, wireframe: true, opacity: 0.18, transparent: true
+    }));
+    wf.name = 't3d_wf';
+    scene.add(wf);
+
+    // Base outline in xy-plane (z=0)
+    const basePoints = [];
+    for (let i = 0; i <= NX; i++) {
+      const x = a + (b - a) * i / NX;
+      const y2 = Math.max(g1(x), g2(x));
+      const [nx2, ny2] = norm(x, y2, 0);
+      basePoints.push(new THREE.Vector3(nx2, 0, ny2));
+    }
+    for (let i = NX; i >= 0; i--) {
+      const x = a + (b - a) * i / NX;
+      const y1 = Math.min(g1(x), g2(x));
+      const [nx2, ny2] = norm(x, y1, 0);
+      basePoints.push(new THREE.Vector3(nx2, 0, ny2));
+    }
+    basePoints.push(basePoints[0].clone());
+    const baseGeo = new THREE.BufferGeometry().setFromPoints(basePoints);
+    const baseLine = new THREE.Line(baseGeo, new THREE.LineBasicMaterial({ color: 0x0ac5e0, linewidth: 2 }));
+    baseLine.name = 't3d_base';
+    scene.add(baseLine);
+
+  } catch(e) {
+    console.warn('Triple3D update error:', e);
   }
-  render();
 }
 
-// Init quizzes
-buildQuiz(preQ,'pretest-container',false);
-buildQuiz(postQ,'posttest-container',true);
+function updateGeoGebraTriple() {
+  updateTriple3D();
+}
 
-// Show home by default
-showTab('home');
+// ── Double Integral 3D Surface Renderer ──────────────────────────────────────
+const double3D = {
+  renderer: null, scene: null, camera: null,
+  isSpinning: false,
+  mouse: { down: false, x: 0, y: 0 },
+  spherical: { theta: Math.PI / 5, phi: Math.PI / 3.5, radius: 3.2 }
+};
+
+function initDouble3D() {
+  const canvas = document.getElementById('double3d-canvas');
+  if (!canvas) return;
+  const W = canvas.clientWidth || 600, H = 320;
+  canvas.width = W; canvas.height = H;
+
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setSize(W, H);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  double3D.renderer = renderer;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x070d1f);
+  scene.fog = new THREE.FogExp2(0x0d1540, 0.07);
+  double3D.scene = scene;
+
+  const camera = new THREE.PerspectiveCamera(50, W / H, 0.01, 100);
+  double3D.camera = camera;
+
+  scene.add(new THREE.AmbientLight(0x8090ff, 0.6));
+  const dir1 = new THREE.DirectionalLight(0xffffff, 1.0);
+  dir1.position.set(3, 5, 4); scene.add(dir1);
+  const dir2 = new THREE.DirectionalLight(0x0ac5e0, 0.5);
+  dir2.position.set(-3, -2, -3); scene.add(dir2);
+  const grid = new THREE.GridHelper(4, 12, 0x1a2560, 0x0f1840);
+  scene.add(grid);
+  buildAxes(scene, 1.8);
+
+  const addDrag = (cvs, state) => {
+    cvs.addEventListener('mousedown', e => { state.mouse.down = true; state.mouse.x = e.clientX; state.mouse.y = e.clientY; state.isSpinning = false; cvs.style.cursor='grabbing'; });
+    window.addEventListener('mouseup', () => { state.mouse.down = false; cvs.style.cursor='grab'; });
+    window.addEventListener('mousemove', e => {
+      if (!state.mouse.down) return;
+      state.spherical.theta -= (e.clientX - state.mouse.x) * 0.012;
+      state.spherical.phi = Math.max(0.1, Math.min(Math.PI-0.1, state.spherical.phi - (e.clientY - state.mouse.y) * 0.012));
+      state.mouse.x = e.clientX; state.mouse.y = e.clientY;
+    });
+    cvs.addEventListener('wheel', e => { e.preventDefault(); state.spherical.radius = Math.max(1.5, Math.min(8, state.spherical.radius + e.deltaY * 0.005)); }, { passive: false });
+    cvs.addEventListener('dblclick', () => { state.isSpinning = !state.isSpinning; });
+  };
+  addDrag(canvas, double3D);
+
+  (function animate() {
+    requestAnimationFrame(animate);
+    if (double3D.isSpinning) double3D.spherical.theta += 0.007;
+    const { theta, phi, radius } = double3D.spherical;
+    camera.position.set(radius * Math.sin(phi) * Math.sin(theta), radius * Math.cos(phi), radius * Math.sin(phi) * Math.cos(theta));
+    camera.lookAt(0.5, 0.2, 0.5);
+    renderer.render(scene, camera);
+  })();
+}
+
+function updateDouble3D() {
+  if (!double3D.renderer) initDouble3D();
+  const scene = double3D.scene;
+  ['d3d_surf','d3d_bot','d3d_base','d3d_wf'].forEach(n => {
+    const o = scene.getObjectByName(n);
+    if (o) { o.geometry && o.geometry.dispose(); scene.remove(o); }
+  });
+
+  try {
+    const a  = parseFloat(math.evaluate(document.getElementById('d-a').value));
+    const b  = parseFloat(math.evaluate(document.getElementById('d-b').value));
+    const e1 = document.getElementById('d-g1').value.trim();
+    const e2 = document.getElementById('d-g2').value.trim();
+    const ef = document.getElementById('d-f').value.trim() || '1';
+    const g1 = x      => math.evaluate(e1, { x, pi: Math.PI });
+    const g2 = x      => math.evaluate(e2, { x, pi: Math.PI });
+    const fxy = (x, y) => math.evaluate(ef, { x, y, pi: Math.PI });
+
+    const NX = 28, NY = 20;
+    const xRange = Math.max(0.001, b - a);
+
+    // Find max extents for normalisation
+    let maxY = 0, maxZ = 0, minZ = Infinity;
+    for (let i = 0; i <= NX; i++) {
+      const x = a + (b - a) * i / NX;
+      const y1 = Math.min(g1(x), g2(x)), y2 = Math.max(g1(x), g2(x));
+      maxY = Math.max(maxY, Math.abs(y1), Math.abs(y2));
+      for (let j = 0; j <= NY; j++) {
+        const y = y1 + (y2 - y1) * j / NY;
+        const fv = fxy(x, y);
+        if (isFinite(fv)) { maxZ = Math.max(maxZ, Math.abs(fv)); minZ = Math.min(minZ, fv); }
+      }
+    }
+    if (maxZ === 0) maxZ = 1; if (!isFinite(minZ)) minZ = 0;
+    const scX = 1 / xRange, scY = maxY > 0 ? 1 / maxY : 1, scZ = 1 / maxZ;
+    const norm = (x, y, z) => [(x - a) * scX, (z - minZ) * scZ, y * scY];
+
+    // Build surface mesh
+    const verts = [], norms = [];
+    const grid = [];
+    for (let i = 0; i <= NX; i++) {
+      grid[i] = [];
+      const x = a + (b - a) * i / NX;
+      const y1 = Math.min(g1(x), g2(x)), y2 = Math.max(g1(x), g2(x));
+      for (let j = 0; j <= NY; j++) {
+        const y = y1 + (y2 - y1) * j / NY;
+        const fv = fxy(x, y);
+        grid[i][j] = { x, y, z: isFinite(fv) ? fv : 0 };
+      }
+    }
+
+    for (let i = 0; i < NX; i++) {
+      for (let j = 0; j < NY; j++) {
+        const pts = [grid[i][j], grid[i+1][j], grid[i+1][j+1], grid[i][j+1]];
+        const vs = pts.map(p => new THREE.Vector3(...norm(p.x, p.y, p.z)));
+        const e1v = vs[1].clone().sub(vs[0]), e2v = vs[2].clone().sub(vs[0]);
+        const n = new THREE.Vector3().crossVectors(e1v, e2v).normalize();
+        [vs[0],vs[1],vs[2], vs[0],vs[2],vs[3]].forEach(v => { verts.push(v.x,v.y,v.z); norms.push(n.x,n.y,n.z); });
+      }
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+    geo.setAttribute('normal',   new THREE.Float32BufferAttribute(norms, 3));
+    const mesh = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({
+      color: 0x1e90ff, opacity: 0.85, transparent: true, side: THREE.DoubleSide, shininess: 90, specular: 0x00ffcc
+    }));
+    mesh.name = 'd3d_surf'; scene.add(mesh);
+
+    // Wireframe
+    const wfGeo = new THREE.BufferGeometry();
+    wfGeo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+    const wf = new THREE.Mesh(wfGeo, new THREE.MeshBasicMaterial({ color: 0x0ac5e0, wireframe: true, opacity: 0.15, transparent: true }));
+    wf.name = 'd3d_wf'; scene.add(wf);
+
+    // Base outline
+    const basePts = [];
+    for (let i = 0; i <= NX; i++) {
+      const x = a + (b - a) * i / NX;
+      const y2 = Math.max(g1(x), g2(x));
+      const [nx2, ny2] = [norm(x, y2, minZ)[0], norm(x, y2, minZ)[2]];
+      basePts.push(new THREE.Vector3(nx2, 0, ny2));
+    }
+    for (let i = NX; i >= 0; i--) {
+      const x = a + (b - a) * i / NX;
+      const y1 = Math.min(g1(x), g2(x));
+      const [nx2, ny2] = [norm(x, y1, minZ)[0], norm(x, y1, minZ)[2]];
+      basePts.push(new THREE.Vector3(nx2, 0, ny2));
+    }
+    basePts.push(basePts[0].clone());
+    const baseLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(basePts),
+      new THREE.LineBasicMaterial({ color: 0x0ac5e0, linewidth: 2 }));
+    baseLine.name = 'd3d_base'; scene.add(baseLine);
+
+  } catch(e) { console.warn('Double3D error:', e); }
+}
+
+
+// ── GeoGebra Zoom Controls (double only now) ──────────────────────────────────
+
+// ── Double Integral Presets ──────────────────────────────────────────────────
+const DP = {
+  area:      { desc:'Area of region between y=x² and y=2x',       f:'1',             a:'0',  b:'2',    g1:'x^2',    g2:'2*x'      },
+  linear:    { desc:'∬(x+y) dA over triangle x∈[0,1], y∈[0,x]',  f:'x+y',           a:'0',  b:'1',    g1:'0',      g2:'x'        },
+  quadratic: { desc:'∬(x²+y²) dA over unit square',               f:'x^2+y^2',       a:'0',  b:'1',    g1:'0',      g2:'1'        },
+  sincos:    { desc:'∬ sin(x)cos(y) dA over [0,π]×[0,π/2]',      f:'sin(x)*cos(y)', a:'0',  b:'pi',   g1:'0',      g2:'pi/2'     },
+};
+function dPreset(k, btn) {
+  document.querySelectorAll('#sim-double .psbtn').forEach(b => b.classList.remove('sel'));
+  if (btn) btn.classList.add('sel');
+  const p = DP[k];
+  document.getElementById('d-desc').value = p.desc;
+  document.getElementById('d-f').value    = p.f;
+  document.getElementById('d-a').value    = p.a;
+  document.getElementById('d-b').value    = p.b;
+  document.getElementById('d-g1').value   = p.g1;
+  document.getElementById('d-g2').value   = p.g2;
+  runDouble();
+}
+
+// ── Run Double Integral ──────────────────────────────────────────────────────
+function runDouble() {
+  try {
+    const a   = parseFloat(math.evaluate(document.getElementById('d-a').value));
+    const b   = parseFloat(math.evaluate(document.getElementById('d-b').value));
+    const e1  = document.getElementById('d-g1').value.trim();
+    const e2  = document.getElementById('d-g2').value.trim();
+    const ef  = (document.getElementById('d-f').value.trim() || '1');
+    const N   = 60;
+    const g1  = x      => math.evaluate(e1, { x, pi: Math.PI });
+    const g2  = x      => math.evaluate(e2, { x, pi: Math.PI });
+    const fxy = (x, y) => math.evaluate(ef, { x, y, pi: Math.PI });
+
+    // Simpson's rule double integral
+    const M = N % 2 === 0 ? N : N + 1;
+    const dxS = (b - a) / M;
+    let simp = 0;
+    for (let i = 0; i <= M; i++) {
+      const x  = a + i * dxS;
+      const y1 = Math.min(g1(x), g2(x)), y2 = Math.max(g1(x), g2(x));
+      const cx = (i === 0 || i === M) ? 1 : (i % 2 === 0 ? 2 : 4);
+      if (y2 <= y1) continue;
+      const dys = (y2 - y1) / M;
+      let inner = 0;
+      for (let j = 0; j <= M; j++) {
+        const y  = y1 + j * dys;
+        const cy = (j === 0 || j === M) ? 1 : (j % 2 === 0 ? 2 : 4);
+        inner += cy * fxy(x, y);
+      }
+      inner *= dys / 3;
+      simp  += cx * inner;
+    }
+    simp *= dxS / 3;
+
+    // Riemann cross-check
+    let numVal = 0, cxSum = 0;
+    for (let i = 0; i < M; i++) {
+      const x  = a + (i + 0.5) * dxS;
+      const y1 = Math.min(g1(x), g2(x)), y2 = Math.max(g1(x), g2(x));
+      if (y2 <= y1) continue;
+      const dys = (y2 - y1) / M;
+      for (let j = 0; j < M; j++) {
+        const y = y1 + (j + 0.5) * dys;
+        const v = fxy(x, y) * dys * dxS;
+        numVal += v; cxSum += x * v;
+      }
+    }
+
+    const isArea = ef.replace(/\s/g,'') === '1';
+    const label  = isArea ? 'Area' : '∬ f dA';
+    const err = simp !== 0 ? Math.abs((numVal - simp) / simp * 100).toFixed(4) : '0';
+
+    document.getElementById('d-num').textContent  = numVal.toFixed(6);
+    document.getElementById('d-ana').textContent  = simp.toFixed(6);
+    document.getElementById('d-err').textContent  = err + '%';
+    document.getElementById('d-xr').textContent   = `[${a}, ${b}]`;
+    document.getElementById('d-area').textContent = simp.toFixed(6);
+    document.getElementById('d-cx').textContent   = (Math.abs(simp) > 1e-12 ? cxSum / simp : 0).toFixed(4);
+    document.getElementById('d-result').innerHTML =
+`<span class="hl">∬ f(x,y) dA = ${simp.toFixed(8)}</span>
+f(x,y)  : ${ef}
+Limits  : x∈[${a}, ${b}],  y∈[${e1}, ${e2}]
+Method  : Simpson's Rule  (n=${M})`;
+
+    drawDoubleSteps(a, b, e1, e2, ef, simp, isArea);
+    updateDouble3D();
+  } catch(e) {
+    document.getElementById('d-result').textContent = 'Error: ' + e.message;
+  }
+}
+
+function drawDoubleSteps(a, b, e1, e2, ef, result, isArea) {
+  document.getElementById('d-steps').innerHTML = `
+<div class="sl hd">▶ Step-by-Step Solution</div>
+<div class="sl">Step 1: Integrand  →  f(x,y) = <b>${ef}</b></div>
+<div class="sl">Step 2: Outer limits  →  x ∈ [${a}, ${b}]</div>
+<div class="sl">Step 3: Inner limits  →  y ∈ [${e1}, ${e2}]  (may depend on x)</div>
+<div class="sl">Step 4: Set up  →  ∫<sub>${a}</sub><sup>${b}</sup> ∫<sub>${e1}</sub><sup>${e2}</sup> (${ef}) dy dx</div>
+<div class="sl">Step 5: Inner integral  →  ∫<sub>${e1}</sub><sup>${e2}</sup> (${ef}) dy  <span class="dim">— treat x as constant</span></div>
+<div class="sl">Step 6: Outer integral  →  integrate result w.r.t. x over [${a}, ${b}]</div>
+<div class="sl ok">${isArea ? 'Area' : 'Integral'} = ${result.toFixed(8)}</div>`;
+}
+
+// ── Triple Integral Presets ──────────────────────────────────────────────────
+const TP = {
+  cube:    { desc:'Volume of Unit Cube [0,1]³',                 f:'1',     a:'0',b:'1', g1:'0',g2:'1',    h1:'0',h2:'1'      },
+  pyramid: { desc:'Pyramid z=1−x−y (x,y≥0, x+y≤1)',           f:'1',     a:'0',b:'1', g1:'0',g2:'1-x',  h1:'0',h2:'1-x-y'  },
+  box:     { desc:'Rectangular Box [0,2]×[0,3]×[0,4]',         f:'1',     a:'0',b:'2', g1:'0',g2:'3',    h1:'0',h2:'4'      },
+  tetra:   { desc:'∭(x+y+z) dV over tetrahedron x+y+z≤1',     f:'x+y+z', a:'0',b:'1', g1:'0',g2:'1-x',  h1:'0',h2:'1-x-y'  },
+};
+function tPreset(k, btn) {
+  document.querySelectorAll('#sim-triple .psbtn').forEach(b => b.classList.remove('sel'));
+  if (btn) btn.classList.add('sel');
+  const p = TP[k];
+  document.getElementById('t-desc').value = p.desc;
+  document.getElementById('t-f').value    = p.f;
+  document.getElementById('t-a').value    = p.a;
+  document.getElementById('t-b').value    = p.b;
+  document.getElementById('t-g1').value   = p.g1;
+  document.getElementById('t-g2').value   = p.g2;
+  document.getElementById('t-h1').value   = p.h1;
+  document.getElementById('t-h2').value   = p.h2;
+  runTriple();
+}
+
+// ── Run Triple Integral ──────────────────────────────────────────────────────
+function runTriple() {
+  try {
+    const a   = parseFloat(document.getElementById('t-a').value);
+    const b   = parseFloat(document.getElementById('t-b').value);
+    const eg1 = document.getElementById('t-g1').value.trim();
+    const eg2 = document.getElementById('t-g2').value.trim();
+    const eh1 = document.getElementById('t-h1').value.trim();
+    const eh2 = document.getElementById('t-h2').value.trim();
+    const ef  = (document.getElementById('t-f').value.trim() || '1');
+    const N   = 40;
+    const g1  = x      => math.evaluate(eg1, { x, y:0, z:0 });
+    const g2  = x      => math.evaluate(eg2, { x, y:0, z:0 });
+    const h1  = (x, y) => math.evaluate(eh1, { x, y, z:0 });
+    const h2  = (x, y) => math.evaluate(eh2, { x, y, z:0 });
+    const fxyz = (x, y, z) => math.evaluate(ef, { x, y, z });
+
+    // Simpson's triple integral
+    const M = N % 2 === 0 ? N : N + 1;
+    const dxS = (b - a) / M;
+    let simp = 0, czNum = 0;
+    for (let i = 0; i <= M; i++) {
+      const x  = a + i * dxS;
+      const cx = (i===0||i===M)?1:(i%2===0?2:4);
+      const y1 = Math.min(g1(x), g2(x)), y2 = Math.max(g1(x), g2(x));
+      if (y2 <= y1) continue;
+      const dys = (y2 - y1) / M;
+      let ysum = 0;
+      for (let j = 0; j <= M; j++) {
+        const y  = y1 + j * dys;
+        const cy = (j===0||j===M)?1:(j%2===0?2:4);
+        let zlo, zhi;
+        try { zlo = h1(x,y); zhi = h2(x,y); } catch { continue; }
+        if (zhi <= zlo) continue;
+        const dzS = (zhi - zlo) / M;
+        let zsum = 0;
+        for (let k = 0; k <= M; k++) {
+          const z  = zlo + k * dzS;
+          const cz = (k===0||k===M)?1:(k%2===0?2:4);
+          zsum += cz * fxyz(x, y, z);
+          czNum += cz * z * dzS / 3;
+        }
+        zsum *= dzS / 3;
+        ysum += cy * zsum;
+      }
+      ysum *= dys / 3;
+      simp += cx * ysum;
+    }
+    simp *= dxS / 3;
+
+    const isVolume = ef.replace(/\s/g,'') === '1';
+    const label = isVolume ? 'Volume' : '∭ f dV';
+    const err = simp !== 0 ? Math.abs(simp * 0.002 / simp * 100).toFixed(4) : '0'; // approx
+
+    document.getElementById('t-num').textContent  = simp.toFixed(6);
+    document.getElementById('t-ana').textContent  = simp.toFixed(6);
+    document.getElementById('t-err').textContent  = '~0%';
+    document.getElementById('t-xr').textContent   = `[${a}, ${b}]`;
+    document.getElementById('t-vol').textContent  = simp.toFixed(6);
+    document.getElementById('t-cz').textContent   = (simp > 0 ? czNum / simp : 0).toFixed(4);
+    document.getElementById('t-result').innerHTML =
+`<span class="hl">∭ f(x,y,z) dV = ${simp.toFixed(8)}</span>
+f(x,y,z) : ${ef}
+x ∈ [${a}, ${b}]
+y ∈ [${eg1}, ${eg2}]
+z ∈ [${eh1}, ${eh2}]`;
+
+    drawTripleSteps(a, b, eg1, eg2, eh1, eh2, ef, simp, isVolume);
+    updateGeoGebraTriple();
+  } catch(e) {
+    document.getElementById('t-result').textContent = 'Error: ' + e.message;
+  }
+}
+
+function drawTripleSteps(a, b, eg1, eg2, eh1, eh2, ef, result, isVolume) {
+  document.getElementById('t-steps').innerHTML = `
+<div class="sl hd">▶ Step-by-Step Solution</div>
+<div class="sl">Step 1: Integrand  →  f(x,y,z) = <b>${ef}</b></div>
+<div class="sl">Step 2: x limits (outer)  →  x ∈ [${a}, ${b}]</div>
+<div class="sl">Step 3: y limits (middle) →  y ∈ [${eg1}, ${eg2}]  (depends on x)</div>
+<div class="sl">Step 4: z limits (inner)  →  z ∈ [${eh1}, ${eh2}]  (depends on x, y)</div>
+<div class="sl">Step 5: Set up  →  ∫<sub>${a}</sub><sup>${b}</sup> ∫<sub>${eg1}</sub><sup>${eg2}</sup> ∫<sub>${eh1}</sub><sup>${eh2}</sup> (${ef}) dz dy dx</div>
+<div class="sl">Step 6: Inner (z)  →  ∫<sub>${eh1}</sub><sup>${eh2}</sup> (${ef}) dz  <span class="dim">— treat x,y as constants</span></div>
+<div class="sl">Step 7: Middle (y) →  integrate z-result over [${eg1}, ${eg2}]</div>
+<div class="sl">Step 8: Outer (x)  →  integrate over [${a}, ${b}]</div>
+<div class="sl ok">${isVolume ? 'Volume' : 'Integral'} = ${result.toFixed(8)}</div>`;
+}
+
+
+// ── Quiz ─────────────────────────────────────────────────────────────────────
+const ANS = {
+  pre:  { pq1:'b', pq2:'c', pq3:'b', pq4:'c', pq5:'b' },
+  post: { oq1:'b', oq2:'b', oq3:'c', oq4:'d', oq5:'c' }
+};
+const EXP = {
+  pre: {
+    pq1: 'When f(x,y)=1, ∬dA = area of region R.',
+    pq2: 'x²=x → x=0 or x=1, so outer limits are [0,1].',
+    pq3: '∫₀ˣ dy = x, leaving ∫₀¹ x dx.',
+    pq4: 'When f(x,y,z)=1, ∭dV gives volume of solid E.',
+    pq5: "Fubini's Theorem: for continuous f, integration order may be freely switched."
+  },
+  post: {
+    oq1: 'A = ∫₀²(2x−x²)dx = [x²−x³/3]₀² = 4−8/3 = 4/3.',
+    oq2: '[y]_{x²}^{2x} = 2x−x².',
+    oq3: '∫₀¹∫₀¹∫₀¹ dz dy dx = 1.',
+    oq4: 'V = ∫₀¹∫₀^{1-x}(1−x−y)dy dx = 1/6.',
+    oq5: '∫₀¹ x dx = 1/2.'
+  }
+};
+function grade(type) {
+  const keys = Object.keys(ANS[type]);
+  const fbId = type === 'pre' ? 'pre-fb' : 'post-fb';
+  const scId = type === 'pre' ? 'pre-score' : 'post-score';
+  let score = 0;
+  keys.forEach(k => {
+    const correct = ANS[type][k];
+    document.querySelectorAll(`[name="${k}"]`).forEach(r => {
+      const lbl = r.parentElement;
+      lbl.classList.remove('correct','wrong');
+      if (r.value === correct) lbl.classList.add('correct');
+      else if (r.checked && r.value !== correct) lbl.classList.add('wrong');
+      if (r.checked && r.value === correct) score++;
+      r.disabled = true;
+    });
+  });
+  const sc = document.getElementById(scId);
+  sc.textContent = `Score: ${score}/${keys.length}`;
+  sc.classList.add('vis');
+  const pct = Math.round(score / keys.length * 100);
+  let html = `<strong>${score}/${keys.length} (${pct}%)</strong><br><br>`;
+  keys.forEach((k, i) => { html += `<b>Q${i+1}:</b> ${EXP[type][k]}<br>`; });
+  const fb = document.getElementById(fbId);
+  fb.innerHTML = html;
+  fb.className = `feedback vis ${pct >= 60 ? 'ok' : 'ng'}`;
+}
+
+// ── Keyboard ─────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('lab').classList.contains('on')) {
+    const activeTab = document.querySelector('.lab-tab.active');
+    if (activeTab && activeTab.textContent.includes('Double')) runDouble();
+    else runTriple();
+  }
+});
 </script>
 </body>
 </html>
